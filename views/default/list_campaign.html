@@ -1,0 +1,117 @@
+{{extend 'layout.html'}}
+<h3>
+    List of Campaigns
+</h3>
+<div class="container">
+    <table class="table table-striped">
+ <thead>
+  <tr>
+    <th>ID</th>
+    <th>Domain</th> 
+    <th>Name</th>
+    <th>Container/Folder</th>
+    <th>Service Type</th>
+    <th>Available From</th>
+    <th>Available Until</th>
+    <th>Status</th>
+    <th>Number of Recipients</th>
+    <th>Number of Objects in Container</th>
+    <th>From Address</th>
+    <th>Subject</th>
+      <th>Actions</th>
+  </tr>
+        </thead>
+        <tbody>
+{{for row in rows: }}
+<tr>
+    <td><a href={{=URL('edit_campaign',args=[row.id])}}>{{=row.id}}</a></td>
+    <td>{{=row.mg_domain}}</td> 
+    <td>{{=row.mg_campaign_name}} ({{=row.mg_campaign_id}})</td>
+    <td>{{=row.cf_container_folder}}</td>
+    <td>{{=row.service_type}}</td>
+    <td>{{=row.available_from}}</td>
+    <td>{{=row.available_until}}</td>
+    <td><span><b id="fm_state_{{=row.id}}">{{=row.status}}</b></span><br><span><small id="result_{{=row.id}}"></small></span>
+        <div id="status_progress_{{=row.id}}">
+        {{=row.status_progress}}% of {{=row.current_task}}
+        </div></td>
+    <td>{{=row.total_campaign_recipients}}</td>
+    <td>{{=row.container_objects}}</td>
+    <td>{{=row.from_address}}</td>
+    <td>{{=row.email_subject}}</td>
+    <td class="fm-actions" id="fm_actions_{{=row.id}}">
+        {{=get_fm_action_buttons(row.id)}}
+    </td>
+  </tr>
+    {{pass}}
+        </tbody>
+</table>
+</div>
+<div>
+<a href="{{=URL('create_campaign')}}" class="btn btn-info" role="button">Create Campaign</a>
+</div>
+
+{{block head}}
+ <style>
+  .modal-header, h4, .close {
+      background-color: #5cb85c;
+      color:white !important;
+      text-align: center;
+      font-size: 30px;
+  }
+  .modal-footer {
+      background-color: #f9f9f9;
+  }
+  </style>
+{{end}}
+
+  <!-- Modal -->
+  <div class="modal fade" id="myModal" role="dialog">
+    <div class="modal-dialog">
+
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header" style="padding:3px 10px;">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4><span class="glyphicon glyphicon-lock"></span>Confirm Action</h4>
+        </div>
+        <div class="modal-body" style="padding:40px 50px;">
+            <div class="form-group" id="mydata"></div>
+            <div><button class="btn btn-info" id="confirm_btn" >Confirm</button></div>
+             <div class="form-group" id="result"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger btn-default pull-left" data-dismiss="modal"><span class="glyphicon glyphicon-remove"></span> Cancel</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function(){
+    var data;
+    /*<tr class="fm-actions" ...>
+         <button class="fm-action" id=....> */
+    $(".fm-actions").on("click",".fm-action", function(){
+        data=JSON.parse($(this).attr("data"));
+        $("#mydata").html("<h5><p>Please confirm action: <b>" +data.event + "</b> for campaign: <b> (" + data.campaign_id + ") " + data.campaign_name + "</b></p></h5>"  );
+        $("#myModal").modal();
+    });
+
+     $("#confirm_btn").click(function(){
+        $("#confirm_btn").html("Processing...").prop('disabled', true)
+         var ajax_loading = "{{=URL('static','images/ajax-loader.gif')}}";
+         $("result_"+data.campaign_id).html(ajax_loading);
+         $("fm_state_"+data.campaign_id).html(ajax_loading);
+         $("fm_actions_"+data.campaign_id).html(ajax_loading);
+         ajax(data.url,[],"result_"+data.campaign_id);
+         ajax(data.url_fm_state,[],"fm_state_"+data.campaign_id);
+         ajax(data.url_fm_buttons,[],"fm_actions_"+data.campaign_id);
+         $('#myModal').modal('toggle');
+         $("#confirm_btn").html("Confirm").prop('disabled', false);
+    });
+
+});
+</script>
