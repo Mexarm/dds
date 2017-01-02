@@ -4,7 +4,7 @@ from automaton import machines #http://docs.openstack.org/developer/automaton/ex
 import pickle
 import uuid
 
-
+#
 #http://ckeditor.com/ para la edicion del body online
 #https://www.tinymce.com/ otro
 #ticket error pyrax
