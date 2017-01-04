@@ -62,12 +62,13 @@ db.define_table('campaign',
                 Field('html_body','text',notnull=True, default=''),
                 Field('logo','upload', uploadfield='logo_file'),
                 Field('logo_file', 'blob'),
-                Field('tasks','list:reference scheduler_task', default =[],writable=False),
+                Field('tasks','list:reference scheduler_task', default =[],writable=False,readable=False),
                 Field('fm','text',default=pickle.dumps(FM),writable=False,readable=False), #finite state machine
-                Field('fm_history','list:string', default=[],writable=False),
+                Field('fm_history','list:string', default=[],writable=False,readable=False),
                 Field('mg_stats','json',default='{}',readable=False,writable=False),
+                Field('mg_stats_unique','json',default='{}',readable=False,writable=False),
                 Field('send_tasks_stats','json',readable=False,writable=False),
-                Field('send_retry_active','boolean'),
+                Field('send_retry_active','boolean',readable=False,writable=False),
                 auth.signature)
 
 db.define_table('doc', Field('campaign','reference campaign'),

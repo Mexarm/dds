@@ -8,7 +8,6 @@
 # - download is for downloading files uploaded in the db (does streaming)
 # -------------------------------------------------------------------------
 
-#tasks = db((db.scheduler_task.function_name == 'progress_tracking') & (db.scheduler_task.status.belongs(['QUEUED', 'RUNNING', 'COMPLETED']))).count()
 
 def __schedule_daemon_tasks():
     for t in DAEMON_TASKS:
@@ -17,12 +16,8 @@ def __schedule_daemon_tasks():
 def __schedule_daemon_task(task_name):
     tasks = db(db.scheduler_task.function_name == task_name).count()
     if not tasks:
-       # dt=datetime.datetime.now() + datetime.timedelta(seconds=30)
         session.flash = scheduler.queue_task(task_name,
                 pvars={},
-                #start_time=dt,
-                #next_run_time=dt,
-                #period = 60 * 5,
                 period = 30,
                 repeats= 0
                 )
@@ -47,10 +42,8 @@ def process_event():
     from automaton import exceptions
     campaign_id=request.vars.campaign_id
     event=request.vars.event
-    #return request.vars
     if not (campaign_id and event): return "Not valid variables"
     campaign = db.campaign(campaign_id)
-    #return dict(a=campaign.mg_campaign_id,b=auth.user,c=campaign.created_by)
     if auth.user.id == campaign.created_by:
         try:
             f = FM_process_event(campaign_id,event)
@@ -66,13 +59,19 @@ def process_event():
 @auth.requires_login()
 def edit_campaign():
     campaign=get_campaign(request.args[0])
+    set_campaign_fields_writable(campaign.status)
+    db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
+    tasks = []
+    for t in campaign.tasks:
+        tasks.append(scheduler.task_status(t,output=True))
+    fm_history = campaign.fm_history
     if form.process().accepted:
         session.flash ='Guardado'
         redirect(URL('list_campaign'))
     elif form.errors:
         response.flash='Errores'
-    return dict(form=form)
+    return dict(form=form,tasks=tasks,fm_history=fm_history)
 
 @auth.requires_login()
 def get_fm_state():
@@ -84,7 +83,7 @@ def get_fm_state():
 def select_mg_domain():
     domains = active_domains_list(mg_get_domains())
     dflt_domain = myconf.get('mailgun.default_domain')
-    zero = dftl_domain if dflt_domain  in domains else None
+    #zero = dftl_domain if dflt_domain  in domains else None
     form=FORM('mailgun domain:',
               SELECT(_name='mg_domain',_class='selectpicker',*domains ),
               INPUT(_type='submit',_label='OK'))
@@ -100,8 +99,15 @@ def select_mg_domain():
 
 @auth.requires_login()
 def list_campaign():
-    rows = db(db.campaign.id>0).select()
-    return dict(rows=rows)
+    if len(request.args): page=int(request.args[0])
+    else: page=0
+    items_per_page=10
+		# Notice that this code selects one more item than is needed, 20+1.
+		# The extra element tells the view whether there is a next page.
+    limitby=(page*items_per_page,(page+1)*items_per_page+1)
+    rows = db(db.campaign.created_by==auth.user.id).select(db.campaign.ALL,
+            limitby=limitby,orderby=[~db.campaign.modified_on,db.campaign.created_on])
+    return dict(rows=rows,page=page,items_per_page=items_per_page,args=request.args)
 
 @auth.requires_login()
 def get_fm_buttons():
@@ -126,11 +132,6 @@ def create_campaign():
     db.campaign.status_progress.readable = False
     db.campaign.current_task.readable = False
     db.campaign.fm_history.readable = False
-    
-    #domains=active_domains_list(mg_get_domains())
-    #dflt_domain=myconf.get('mailgun.default_domain')
-    #zero = dftl_domain if dflt_domain  in domains else None
-    #db.campaign.mg_domain.requires = IS_IN_SET(domains,zero=zero)
     db.campaign.mg_domain.default= domain
     db.campaign.mg_domain.writable=False
     db.campaign.test_address.default = auth.user.email
@@ -147,12 +148,7 @@ def create_campaign():
             count,bytes=r
         else:
             count,bytes=(0,0)
-        #ret = scheduler.queue_task(register_on_db,pvars=dict(campaign_id=form.vars.id),timeout=60 * count,sync_output=60 ) # timeout = 60secs per record
-        #tasks = db.repo_meta(form.vars.id).tasks
-        #tasks =  tasks + [ret.id] if tasks else [ret.id]
-        #db(db.repo_meta.id==form.vars.id).update(tasks=tasks,container_objects=count, container_bytes=bytes)
         db(db.campaign.id==form.vars.id).update(container_objects=count, container_bytes=bytes)
-        #session.flash = DIV(DIV('Entrada de repositorio creada'),DIV('se creo tarea de preparacion id={}'.format(ret.id)))
         session.flash = DIV('Campaign ID {} created'.format(form.vars.id))
         redirect(URL('list_campaign'))
     elif form.errors:
@@ -167,7 +163,6 @@ def secure():
     rcode = request.vars.rcode
     r = db.retrieve_code(id)
     if r.rcode == rcode:
-        #return r.temp_url
         from datetime import datetime
         if r.available_until > datetime.now():
             redirect(r.temp_url, client_side=True)

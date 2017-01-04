@@ -4,9 +4,8 @@ import time
 import datetime
 import json
 from shutil import copyfileobj
-import inspect
 import sys
-import traceback
+#import traceback
 
 import pyrax
 import pyrax.exceptions as exc
@@ -386,7 +385,7 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
                 doc.bytes=obj.bytes
                 doc.checksum=obj.etag
                 event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
-                        event_type=event_type, 
+                        event_type=event_type,
                         event_data='{}/{} OK'.format(container,  path.join(prefix,doc.object_name)),
                         created_by_task =W2P_TASK.uuid) #event_data
             else:
@@ -430,7 +429,7 @@ def save_image(campaign_logo):
     if not path.isdir(pth):
         mkdir(pth)
     fullname = path.join(abspath(request.folder),'logos/',campaign_logo)
-    copyfileobj(stream_, open(fullname, 'wb')) 
+    copyfileobj(stream_, open(fullname, 'wb'))
     return fullname
 
 def send_doc_wrapper(*args,**kwargs):
@@ -440,9 +439,9 @@ def send_doc_wrapper(*args,**kwargs):
         return process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
     except (NameError,requests.exceptions.RequestException)  as e:
         event_data(doc=args[0],category='error',
-                event_type='send_doc', 
+                event_type='send_doc',
                 event_data='error:{}'.format(e.message),
-                event_json=kwargs) 
+                event_json=kwargs)
         db.commit()
         if isinstance(e,requests.exceptions.RequestException):
             raise
@@ -461,7 +460,7 @@ def process_mg_response(*args,**kwargs):
     doc_id=args[1]
 
     doc=get_doc(doc_id) #response, doc_id
-    category='error' 
+    category='error'
     if res.status_code == 200:
         doc.status=DOC_LOCAL_STATE_OK[4] if 'Queued' in res.json()['message'] else None
         category = 'info'
@@ -487,7 +486,7 @@ def process_mg_response(*args,**kwargs):
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
     url_type= [ 'temp_url', 'dds_url' ][SERVICE_TYPE.index(campaign.service_type)]
-    data = dict(record_id = doc.record_id, 
+    data = dict(record_id = doc.record_id,
             object_name = doc.object_name,
             email_address = doc.email_address,
             url=rc[url_type],
@@ -511,7 +510,7 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
     if not path.isfile(logofile):
         save_image(campaign.logo)
     context=get_context(doc,campaign,rc)
-    html_body = render(campaign.html_body,context=context) 
+    html_body = render(campaign.html_body,context=context)
     data={'from':'{} <{}>'.format(campaign.from_name,campaign.from_address) if campaign.from_name else campaign.from_address,
           'to':to or doc.email_address,
           'subject':render(campaign.email_subject,context=context),
@@ -655,7 +654,7 @@ def validating_documents_change_status(campaign_id):
             f = FM_process_event(campaign_id,'_not valid docs')
             if f:
                 f()
-    db.commit()        
+    db.commit()
         #except exceptions.AutomatonException as e:
         #    return e.message
 
@@ -682,10 +681,24 @@ def update_send_tasks_stats(campign_id):
                     d.update_record()
                     db.commit()
                 send_retry_active=True
-   ##pendiente continuar escribir en la campaign 
+   ##pendiente continuar escribir en la campaign
 
 def sheduled_change_status(campaign_id):
     pass
 def live_change_status(campaign_id):
     pass
 # END Progress tracking and status changer ------------------------------------------------------------------------------------------
+def set_campaign_fields_writable(campaign_status):
+    l0=['mg_campaign_name', 'test_mode', 'delete_documents_on_expire', 'download_limit',
+            'maximum_bandwith', 'mg_tags']
+    l1=['from_name', 'from_address', 'test_address', 'email_subject', 'html_body',
+            'logo', 'logo_file']
+    l2=[ 'cf_container_folder', 'index_file', 'service_type', 'available_from', 
+            'available_until']
+    wfields = { 'defined' : l0+l1+l2,
+                'documents ready' :l0+l1,
+                'in approval' :l0+l1,
+                'approved':l0
+              }.get(campaign_status,[])
+    for f in db.campaign.fields:
+        db.campaign[f].writable = True if f in wfields else False

@@ -980,3 +980,38 @@ r = mg_update_local_campaign_stats(4)
 r
 r.json()
 exit()
+auth.user
+r = db().select(db.campaign.ALL)
+r
+r[0].created_by
+rows = db(db.campaign.created_by==1).select(db.campaign.ALL,limitby=limitby,orderby=[~db.campaign.modified_on,db.campaign.created_on])
+limitby=(0,1)
+rows = db(db.campaign.created_by==1).select(db.campaign.ALL,limitby=limitby,orderby=[~db.campaign.modified_on,db.campaign.created_on])
+rows
+rows[0]
+exit
+exit()
+db.campaign.fields
+BEAUTYFY(db.campaign.fields)
+BEAUTIFY(db.campaign.fields)
+BEAUTIFY(db.campaign.fields).xml()
+str(BEAUTIFY(db.campaign.fields))
+str(BEAUTIFY(db.campaign.fields).flatten())
+Field()
+Field
+dir(Field)
+inspect
+exit()
+inspect
+import inspect
+inspect.getsource(Field)
+pritn (inspect.getsource(Field))
+print (inspect.getsource(Field))
+print(db.campaign.fields)
+db.campaign.fields
+db.campaign.fields[0]
+type(db.campaign.fields[0])
+dir(db.campaign)
+db.campaign
+db.campaign['id']
+exit()

@@ -1,8 +1,76 @@
 {{extend 'layout.html'}}
+{{block head}}
+<style>
+table {
+        font-family: arial, sans-serif;
+         border-collapse: collapse;
+         width: 100%;
+}
+
+td, th {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+}
+
+tr:nth-child(even) {
+        background-color: #dddddd;
+}
+tr.traceback {
+    color: red;
+}
+</style>
+{{end}}
 <div>
 <a href="{{=URL('list_campaign')}}" class="btn btn-info" role="button">Regresar</a>
 </div>
 
 <div class="col-sm-8">
+<h3>Campaign Events</h3>
+    <table>
+        <tr>
+            <th>FM History</th>
+		</tr>
+
+
+    {{for event  in fm_history:}}
+    <tr>
+        <td><i>{{=event}}</i></td>
+    </tr>
+    {{pass}}
+    </table>
+</div>
+<div class="col-sm-8">
+<h3>Campaign tasks</h3>
+    <table>
+        <tr>
+            <th>TaskID</th>
+			<th>function name</th>
+			<th>status</th>
+            <th>last run time</th>
+            <th>run output</th>
+		</tr>
+
+    {{for ts in tasks:}}
+		<tr>
+            <td>{{=ts.scheduler_task.id}}</td>
+            <td>{{=ts.scheduler_task.function_name}}</td>
+            <td>{{=ts.scheduler_task.status}}</td>
+            <td>{{=ts.scheduler_task.last_run_time}}</td>
+            <td>{{=ts.scheduler_run.run_output}}</td>
+	   </tr>
+       {{if ts.scheduler_run.traceback:}}
+       <tr class="traceback">
+           <th>traceback</th>
+            <td>{{=ts.scheduler_run.traceback}}</td>
+       </tr>
+       {{pass}}
+
+    {{pass}}
+    </table>
+</div>
+
+<div class="col-sm-8">
+<h3>Campaign Settings</h3>
 {{=form}}
 </div>

@@ -2,6 +2,9 @@
 <h3>
     List of Campaigns
 </h3>
+<div>
+<a href="{{=URL('create_campaign')}}" class="btn btn-info" role="button">Create Campaign</a>
+</div>
 <div class="container">
     <table class="table table-striped">
  <thead>
@@ -22,7 +25,8 @@
   </tr>
         </thead>
         <tbody>
-{{for row in rows: }}
+{{for i,row in enumerate(rows): }}
+{{if i == items_per_page: break}}
 <tr>
     <td><a href={{=URL('edit_campaign',args=[row.id])}}>{{=row.id}}</a></td>
     <td>{{=row.mg_domain}}</td> 
@@ -48,7 +52,13 @@
 </table>
 </div>
 <div>
-<a href="{{=URL('create_campaign')}}" class="btn btn-info" role="button">Create Campaign</a>
+	{{if page:}}
+	<a href="{{=URL(args=[page-1])}}" class="btn btn-primary" role="button">previous</a>
+	{{pass}}
+
+	{{if len(rows)>items_per_page:}}
+	<a href="{{=URL(args=[page+1])}}" class="btn btn-primary" role="button">next</a>
+	{{pass}}
 </div>
 
 {{block head}}
