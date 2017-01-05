@@ -26,9 +26,9 @@ def send_test(campaign_id):
     ret = scheduler.queue_task(send_doc_wrapper,
             pargs=[doc_id],
             pvars=dict(to=get_campaign(campaign_id).test_address,
-            mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
-            update_doc=False,
-            ignore_delivery_time=True))
+                mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
+                update_doc=False,
+                ignore_delivery_time=True))
     tasks = campaign.tasks
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks)

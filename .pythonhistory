@@ -1015,3 +1015,67 @@ dir(db.campaign)
 db.campaign
 db.campaign['id']
 exit()
+db
+exit()
+c = db().select(db.campaign.ALL)
+c
+c = db().select(db.campaign.id)
+print c
+d = db(db.doc.campaig==1).select(db.doc.id).first()
+d = db(db.doc.campaign==1).select(db.doc.id).first()
+print d
+print d.retrieve_code()
+print d.retrieve_code
+print d
+print d.retrieve_code.select()
+c = get_context(get_doc(1),get_campaign(1),get_rcode(2))
+c = get_context(get_doc(1),get_campaign(1),get_rcode(1,1))
+c
+c.keys
+c.keys()
+c.data.keys()
+c['data'].keys()
+c['campaign'].keys()
+json.dumps(c)
+exit()
+DOC_LOCAL_STATE_OK[2:]
+tabm -2
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+campaign = get_campaign(1)
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+doc
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(['a'])).select(limitby=(0,1)).first()
+doc
+print doc
+context = get_context(1,1,get_rcode(1,1))
+context = get_context(doc,campaign,get_rcode(doc.id,campaign.id))
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+context = get_context(doc,campaign,get_rcode(doc.id,campaign.id))
+context
+json.dumps(context)
+def date_handler(obj):
+    return obj.isoformat() if hasattr(obj, 'isoformat') else obj
+json.dumps(context,default=date_handler)
+context = get_context(doc,campaign,get_rcode(doc.id,campaign.id))
+doc.campaign
+campaign.id
+json.dumps(context)
+exit()
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+campaign = get_campaign(1)
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+context = get_context(doc,campaign,get_rcode(doc.id,campaign.id))
+json.dumps(context)
+exit
+exit()
+campaign = get_campaign(1)
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+context = get_context(doc,campaign,get_rcode(doc.id,campaign.id))
+json.dumps(context)
+print BEAUTIFY(context)
+print (json.dumps(context))
+context['campaign']
+context['campaign'].mgtags
+context['campaign'].mg_tags
+print BEAUTIFY(context['campaign'].mg_tags)
+exit()

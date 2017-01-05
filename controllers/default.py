@@ -57,21 +57,26 @@ def process_event():
 
 
 @auth.requires_login()
+def get_html_body():
+    campaign=get_campaign(request.args[0])
+    return campaign.html_body
+
+@auth.requires_login()
 def edit_campaign():
     campaign=get_campaign(request.args[0])
     set_campaign_fields_writable(campaign.status)
     db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
-    tasks = []
-    for t in campaign.tasks:
-        tasks.append(scheduler.task_status(t,output=True))
-    fm_history = campaign.fm_history
+    tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
+    doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+    #return str(doc)+str(campaign)
+    context = get_context(doc,campaign,get_rcode(doc.id,doc.campaign)) if doc else None
     if form.process().accepted:
         session.flash ='Guardado'
         redirect(URL('list_campaign'))
     elif form.errors:
         response.flash='Errores'
-    return dict(form=form,tasks=tasks,fm_history=fm_history)
+    return dict(form=form,tasks=tasks,fm_history=campaign.fm_history,campaign=campaign,context=context)
 
 @auth.requires_login()
 def get_fm_state():

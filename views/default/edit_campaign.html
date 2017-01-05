@@ -21,10 +21,15 @@ tr.traceback {
 }
 </style>
 {{end}}
-<div>
+<div class="col-sm-8">
 <a href="{{=URL('list_campaign')}}" class="btn btn-info" role="button">Regresar</a>
 </div>
-
+<div name="context" class="col-sm-8">
+    <h3>Sample Context</h3>
+ {{if context:}}
+ {{=BEAUTIFY(context)}}
+ {{pass}}
+</div>
 <div class="col-sm-8">
 <h3>Campaign Events</h3>
     <table>
@@ -39,6 +44,14 @@ tr.traceback {
     </tr>
     {{pass}}
     </table>
+</div>
+<div class="col-sm-8">
+<!--<iframe src="{{=URL('get_html_body',args=[campaign.id])}}" sandbox
+    srcdoc="{{=campaign.html_body}}"></iframe>-->
+
+<iframe srcdoc="{{=campaign.html_body}}" sandbox="">
+    <p>Your browser does not support iframes.</p>
+</iframe>
 </div>
 <div class="col-sm-8">
 <h3>Campaign tasks</h3>
