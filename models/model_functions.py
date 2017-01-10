@@ -5,6 +5,7 @@ import datetime
 import json
 from shutil import copyfileobj
 import sys
+import inspect
 #import traceback
 
 import pyrax
@@ -42,15 +43,18 @@ def mg_update_local_campaigns_stats():
 
 def mg_update_local_campaign_stats(campaign_id): #update a campaign with the information retrieved from mailgun
     c = get_campaign(campaign_id)
-    r = requests.get(
-        #"https://api.mailgun.net/v3/{}/campaigns/{}/stats".format(c.mg_domain,c.mg_campaign_id),
+    r1 = requests.get(
+        "https://api.mailgun.net/v3/{}/campaigns/{}/stats".format(c.mg_domain,c.mg_campaign_id),
+        auth=('api', myconf.get('mailgun.api_key')))
+    r2 = requests.get(
         "https://api.mailgun.net/v3/{}/campaigns/{}".format(c.mg_domain,c.mg_campaign_id), # juntar la info de ambos o ponerla en 2 campos diferentes
         auth=('api', myconf.get('mailgun.api_key')))
-    return r
-
-#{u'unique': {u'clicked': {u'recipient': 2, u'link': 4}, u'opened': {u'recipient': 2}}, u'total': {u'complained': 0, u'delivered': 6, u'clicked': 9, u'opened': 14, u'dropped': 0, u'bounced': 0, u'sent': 6, u'unsubscribed': 0}}
-
-#{u'unsubscribed_count': 0, u'name': u'dds_demo1', u'created_at': u'Wed, 21 Dec 2016 23:59:35 GMT', u'clicked_count': 9, u'opened_count': 14, u'submitted_count': 6, u'delivered_count': 6, u'bounced_count': 0, u'complained_count': 0, u'id': u'xka6g', u'dropped_count': 0}
+    c.mg_stats=r2.json()
+    c.mg_stats_unique=r1.json()
+    c.update_record()
+    db.commit()
+        #r1.json() = {u'unique': {u'clicked': {u'recipient': 2, u'link': 4}, u'opened': {u'recipient': 2}}, u'total': {u'complained': 0, u'delivered': 6, u'clicked': 9, u'opened': 14, u'dropped': 0, u'bounced': 0, u'sent': 6, u'unsubscribed': 0}}
+        #r2.json() = {u'unsubscribed_count': 0, u'name': u'dds_demo1', u'created_at': u'Wed, 21 Dec 2016 23:59:35 GMT', u'clicked_count': 9, u'opened_count': 14, u'submitted_count': 6, u'delivered_count': 6, u'bounced_count': 0, u'complained_count': 0, u'id': u'xka6g', u'dropped_count': 0}
 
 #--------------utilerias---------
 def get_container_name(uri):
@@ -535,7 +539,7 @@ def mg_send_message(domain,api_key,**kwargs):
         **kwargs)
 
 def get_rcode(doc_id,campaign_id):
-    return db((db.retrieve_code.doc == doc_id) & (db.retrieve_code.campaign == campaign_id)).select(limitby=(0,1), 
+    return db((db.retrieve_code.doc == doc_id) & (db.retrieve_code.campaign == campaign_id)).select(limitby=(0,1),
             orderby=~db.retrieve_code.id).first()
 
 def get_campaign(campaign_id):
@@ -556,7 +560,11 @@ def validate_campaign(form):
         form.vars.available_until=form.vars.available_from + relativedelta(years=1)
     else:
         if form.vars.available_until < datetime.datetime.now():
-            form.errors.available_until = "provide a future date"
+            form.errors.available_until('available until should be a future date')
+        if form.vars.available_from >= form.vars.available_until:
+            form.errors.available_from = 'this date should be before than "available until"'
+            form.errors.available_until = 'this date should be later than "available from"'
+
     if r:
         if isinstance(r,exc.AuthenticationFailed):
             form.errors.cf_container_folder = r.message
@@ -564,6 +572,11 @@ def validate_campaign(form):
             form.errors.cf_container_folder = r.message
         if isinstance(r,exc.NoSuchObject):
             form.errors.index_file = r.message
+
+def validate_dates(form):
+    available_until =  get_campaign(form.id).available_until
+    if form.vars.available_from >= available_until:
+        form.errors.available_from = 'this date should be before "available until"'
 
 # BEGIN Progress tracking and status changer ------------------------------------------------------------------------------------------
 def do_function_on_records(query,f):
@@ -661,7 +674,8 @@ def validating_documents_change_status(campaign_id):
 def queueing_change_status(campaign_id):
     c=get_campaign(campaign_id)
     if c.status_progress==100.0:
-        f = FM_process_event(campaign_id,'_go live')
+        action_='_go live' if c.available_from < datetime.datetime.now() else '_go scheduled'
+        f = FM_process_event(campaign_id,action_)
         if f:
             f()
     db.commit()  #Check if this commit is necessary here
@@ -684,17 +698,26 @@ def update_send_tasks_stats(campign_id):
    ##pendiente continuar escribir en la campaign
 
 def sheduled_change_status(campaign_id):
-    pass
+    campaign=get_campaign(campaign_id)
+    if campaign.available_from < datetime.datetime.now():
+        f = FM_process_event(campaign_id,'_go live')
+        if f:
+            f()
+    db.commit()  #Check if this commit is necessary here
 def live_change_status(campaign_id):
-    pass
+    campaign=get_campaign(campaign_id)
+    if campaign.available_until < datetime.datetime.now():
+        f = FM_process_event(campaign_id,'_finish')
+        if f:
+            f()
+    db.commit()  #Check if this commit is necessary here
 # END Progress tracking and status changer ------------------------------------------------------------------------------------------
 def set_campaign_fields_writable(campaign_status):
     l0=['mg_campaign_name', 'test_mode', 'delete_documents_on_expire', 'download_limit',
-            'maximum_bandwith', 'mg_tags']
+            'maximum_bandwith', 'mg_tags','available_from']
     l1=['from_name', 'from_address', 'test_address', 'email_subject', 'html_body',
             'logo', 'logo_file']
-    l2=[ 'cf_container_folder', 'index_file', 'service_type', 'available_from', 
-            'available_until']
+    l2=[ 'cf_container_folder', 'index_file', 'service_type', 'available_until']
     wfields = { 'defined' : l0+l1+l2,
                 'documents ready' :l0+l1,
                 'in approval' :l0+l1,

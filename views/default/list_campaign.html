@@ -37,7 +37,9 @@
     <td>{{=row.available_until}}</td>
     <td><span><b id="fm_state_{{=row.id}}">{{=row.status}}</b></span><br><span><small id="result_{{=row.id}}"></small></span>
         <div id="status_progress_{{=row.id}}">
-        {{=row.status_progress}}% of {{=row.current_task}}
+            {{if row.status in FM_STATES_WITH_PROGRESS_TRACKING:}}
+        {{=row.status_progress}}%
+        {{pass}} 
         </div></td>
     <td>{{=row.total_campaign_recipients}}</td>
     <td>{{=row.container_objects}}</td>

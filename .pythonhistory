@@ -1079,3 +1079,34 @@ context['campaign'].mgtags
 context['campaign'].mg_tags
 print BEAUTIFY(context['campaign'].mg_tags)
 exit()
+exit
+exit()
+live_change_status(1)
+c = get_campaign(1)
+c.available_until
+datetime.datetime.now()
+c.available_until < datetime.datetime.now()
+db.campaign.truncate()
+db(db.campaign>0).delete()
+db(db.campaign.id>0).delete()
+db.commit()
+db(db.campaign.id>0).delete()
+db.commit()
+DOC_LOCAL_STATE_OK[2:]
+doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+doc = db(db.doc.campaign == 4  & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+doc
+doc = db((db.doc.campaign == 4)  & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+doc
+exit()
+r = mg_get_campaigns('wedeliver.com.mx')
+r
+r.json()['items']
+mg_update_local_campaigns_stats()
+db.commit()
+f= lambda x:return None
+f= lambda x: None
+f()
+f(1)
+xit()
+exit()

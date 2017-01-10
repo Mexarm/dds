@@ -34,7 +34,7 @@ def send_test(campaign_id):
     db(db.campaign.id==campaign_id).update(tasks=tasks)
     #db.commit()
 
-def launch_campaign(campaign_id): 
+def launch_campaign(campaign_id):
     c = get_campaign(campaign_id)
     if c.mg_acceptance_time  > datetime.datetime.now():
         raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
@@ -48,7 +48,7 @@ def launch_campaign(campaign_id):
             retry_failed =myconf.get ('retry.retry_failed'))
         d.update_record()
         db.commit() #commit each task queued and updates docs
-                
+
 def schedule_launch_campaign(campaign_id):
     c = get_campaign(campaign_id)
     task = scheduler.queue_task(launch_campaign,
@@ -59,10 +59,15 @@ def schedule_launch_campaign(campaign_id):
     r = c.update_record()
     return task
 
+def finished_campaign(campaign_id):
+    #finish the campaign, delete storage files etc
+    pass
+
 actions = {
     'validating documents' : validate_documents,
     'in approval': send_test,
-    'queueing': schedule_launch_campaign
+    'queueing': schedule_launch_campaign,
+    'finished': finished_campaign
     }
 
 def fm_on_enter(new_state, triggered_event):
@@ -140,7 +145,7 @@ def FM_process_event(campaign_id,fm_event):
     cstate=fm.current_state
     fm.process_event(fm_event)
     if auth.user:
-        by = auth.user.email 
+        by = auth.user.email
     else:
         by = "System" #when it runs inside the scheduler worker
     fm_history += ["{} by {}:{},{},{}".format(str(datetime.now()), by ,cstate,fm_event,fm.current_state) ]
@@ -148,7 +153,7 @@ def FM_process_event(campaign_id,fm_event):
     f = fm_on_enter(fm.current_state,fm_event)
     if f:
         def closure():
-            return f(campaign_id)
+            return f(campaign_id) #returns the function or it could be called here ?
         return closure
     else:
         return None

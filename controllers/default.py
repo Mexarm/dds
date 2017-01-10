@@ -66,12 +66,15 @@ def edit_campaign():
     campaign=get_campaign(request.args[0])
     set_campaign_fields_writable(campaign.status)
     db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
+    mg_update_local_campaign_stats(campaign.id)
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
     tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
-    doc = db(db.doc.campaign == campaign.id & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
+    doc = db((db.doc.campaign == campaign.id) & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
     #return str(doc)+str(campaign)
     context = get_context(doc,campaign,get_rcode(doc.id,doc.campaign)) if doc else None
-    if form.process().accepted:
+    form.id=campaign.id #pass the id of the campaign in the form to the onvalidation function
+    onvalidation= validate_dates if form.vars.available_from else lambda x: None
+    if form.process(onvalidation=onvalidation).accepted:
         session.flash ='Guardado'
         redirect(URL('list_campaign'))
     elif form.errors:
@@ -112,7 +115,7 @@ def list_campaign():
     limitby=(page*items_per_page,(page+1)*items_per_page+1)
     rows = db(db.campaign.created_by==auth.user.id).select(db.campaign.ALL,
             limitby=limitby,orderby=[~db.campaign.modified_on,db.campaign.created_on])
-    return dict(rows=rows,page=page,items_per_page=items_per_page,args=request.args)
+    return dict(rows=rows,page=page,items_per_page=items_per_page,args=request.args,FM_STATES_WITH_PROGRESS_TRACKING=FM_STATES_WITH_PROGRESS_TRACKING)
 
 @auth.requires_login()
 def get_fm_buttons():
