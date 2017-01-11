@@ -34,8 +34,10 @@ def index():
     return auth.wiki()
     """
     #redirect(URL('list_campaign'))
-    response.flash = T("Hello World")
-    return dict(message=T('Welcome to web2py!'))
+    #response.flash = T("Hello World")
+    if auth.user :
+        redirect(URL('list_campaign'))
+    return dict(message=T('Welcome to DDS!@{}'.format(myconf.get('host.server'))))
 
 @auth.requires_login()
 def process_event():

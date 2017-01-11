@@ -6,7 +6,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 
 response.logo = A(B('qualitypost'), XML('&reg;&nbsp;'),
-                  _class="navbar-brand", _href="http://www.qualitypost.com.mx/",
+                  _class="navbar-brand", _href=URL('index'),
                   _id="qp-logo")
 response.title = request.application.replace('_', ' ').title()
 response.subtitle = ''
@@ -29,7 +29,7 @@ response.google_analytics_id = None
 # ----------------------------------------------------------------------------------------------------------------------
 
 response.menu = [
-    (T('Home'), False, URL('default', 'list_campaign'), [])
+    (T('Campaigns'), False, URL('default', 'list_campaign'), [])
 ]
 
 DEVELOPMENT_MENU = False

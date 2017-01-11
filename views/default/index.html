@@ -14,19 +14,38 @@
 
 {{if 'message' in globals():}}
 <h2>{{=message}}</h2>
-<p class="lead">{{=T('How did you get here?')}}</p>
+<p class="lead">{{=T('Document Delivery System')}}</p>
 <ol>
-  <li>{{=T('You are successfully running web2py')}}</li>
-  <li>{{=XML(T('You visited the url %s', A(request.env.path_info,_href=request.env.path_info)))}}</li>
-  <li>{{=XML(T('Which called the function %s located in the file %s',
-    (A(request.function+'()',_href='#'),
-    A('web2py/applications/%(application)s/controllers/%(controller)s.py' % request,
-    _href=URL('admin','default','peek', args=(request.application,'controllers',request.controller+'.py'))))))}}</li>
-  <li>{{=XML(T('The output of the file is a dictionary that was rendered by the view %s',
-    A('web2py/applications/%(application)s/views/%(controller)s/index.html' % request,
-    _href=URL('admin','default','peek',args=(request.application,'views',request.controller,'index.html')))))}}</li>
-  <li>{{=T('You can modify this application and adapt it to your needs')}}</li>
+  <li>{{=T('You are successfully running DDS')}}</li>
 </ol>
+<div><p>
+Le presentamos la plataforma de produccion y entrega masiva de documentos electronicos, Document Delivery System® (DDS).
+
+Producción y Entrega segura de documentos digitales personalizados (PDF), mediante correo electrónico.
+Produccion Masiva desde cientos hasta millones de documentos 
+Ejemplos de Documentos:
+
+Estados de Cuenta
+Pólizas / Términos y Condiciones
+Cartas
+Informes
+Brochures
+
+Entrega segura mediante campañas de emails personalizados de forma individual, cada email contiene la URL del documento personalizado.
+
+Panel de control para monitorear la campaña de entrega de correos electrónicos
+
+Confirmación de entrega del correo
+Confirmación de apertura del correo
+Confirmación de acceso al documento enviado
+
+Plataforma de almacenamiento de documentos poderosa, segura y escalable, para soportar las mas altas exigencias de almacenamiento de documentos, 
+Infraestructura profesional de entrega de correos electrónicos muy poderosa y escalable, permite integrarse su dominio. (Para envió de email masivos se recomienda crear un dominio dedicado para esta función)
+Esquema de costo “pague por lo que usa” con tarifas  claramente establecidas.
+Seguridad en la producción y entrega
+   Autorización online de la producción
+    </p></div>
+
 {{elif 'content' in globals():}}
 {{=content}}
 {{else:}}
@@ -41,12 +60,10 @@
       {{=T("admin")}}
     </a></h3></div>
   <div class="panel-body">
-    {{=T("Don't know what to do?")}}
+    {{=T("Options")}}
   </div>
   <ul class="list-group">
-    <li class="list-group-item">{{=A(T("Online examples"), _href=URL('examples','default','index'))}}</li>
-    <li class="list-group-item"><a href="http://web2py.com">web2py.com</a></li>
-    <li class="list-group-item"><a href="http://web2py.com/book">{{=T('Documentation')}}</a></li>
+      <li class="list-group-item"><a href="{{=URL('list_campaign')}}">{{=T('Delivery Campaigns')}}</a></li>
   </ul>
 </div>
 {{end}}
