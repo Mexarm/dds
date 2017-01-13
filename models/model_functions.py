@@ -497,6 +497,7 @@ def get_context(doc,campaign,rc):
             )
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
+            uuid = campaign.uuid,
             mg_id = campaign.mg_campaign_id,
             mg_name = campaign.mg_campaign_name,
             logo = IMG(_src='cid:{}'.format(campaign.logo),_alt='logo'),
