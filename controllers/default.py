@@ -65,10 +65,11 @@ def get_html_body():
 
 @auth.requires_login()
 def edit_campaign():
-    campaign=get_campaign(request.args[0])
+    campaign_id=request.args[0]
+    mg_update_local_campaign_stats(campaign_id)
+    campaign=get_campaign(campaign_id)
     set_campaign_fields_writable(campaign.status)
     db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
-    mg_update_local_campaign_stats(campaign.id)
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
     tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
     doc = db((db.doc.campaign == campaign.id) & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()

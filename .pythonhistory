@@ -1110,3 +1110,7 @@ f()
 f(1)
 xit()
 exit()
+db(db.campaign.id==7).delete()
+db.commit()
+exit
+exit()

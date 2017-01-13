@@ -555,7 +555,7 @@ def validate_campaign(form):
     container_name = get_container_name(form.vars.cf_container_folder)
     object_name=path.join(get_prefix(form.vars.cf_container_folder),form.vars.index_file)
     r = exist_object(container_name,object_name,get_credentials_storage())
-    form.vars.mg_campaign_id = get_mg_campaign(mg_get_campaigns(form.vars.mg_domain or session.mg_domain),form.vars.mg_campaign_name)['id'] #retrieve mg_campaign_id from mailgun
+    #form.vars.mg_campaign_id = get_mg_campaign(mg_get_campaigns(form.vars.mg_domain or session.mg_domain),form.vars.mg_campaign_name)['id'] #retrieve mg_campaign_id from mailgun
     if not form.vars.available_until:  #default + 1 año
         form.vars.available_until=form.vars.available_from + relativedelta(years=1)
     else:
@@ -573,7 +573,7 @@ def validate_campaign(form):
         if isinstance(r,exc.NoSuchObject):
             form.errors.index_file = r.message
 
-def validate_dates(form):
+def validate_dates_cid(form):
     available_until =  get_campaign(form.id).available_until
     if form.vars.available_from >= available_until:
         form.errors.available_from = 'this date should be before "available until"'

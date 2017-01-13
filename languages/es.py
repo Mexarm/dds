@@ -330,6 +330,7 @@
 'reload': 'recargar',
 'Remember me (for 30 days)': 'Recuérdame (durante 30 días)',
 'remove compiled': 'eliminar compiladas',
+'Request Reset Password': 'Request Reset Password',
 'Request reset password': 'Solicitar reinicio de contraseña',
 'Reset password': 'Reiniciar contraseña',
 'Reset Password key': 'Restaurar Llave de la Contraseña',
