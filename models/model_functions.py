@@ -339,6 +339,13 @@ def create_validate_docs_tasks(campaign_id):   #this function creates a task for
         db.commit()
     return dict(result = '{} tasks created'.format(n))
 
+def parse_datetime(s,dflt_format):
+    #s is s string that represents a datetime#format example :01/12/017 09:15:00#%d/%m/%Y %H:%M:%S
+    #if no format is specified the default format is used
+    t = s.split('#')
+    return datetime.datetime.strptime(t[0],t[1] if len(t)>1 else dflt_format)
+
+
 def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_docs_tasks
 
     doc = db(db.doc.id==doc_id).select(limitby=(0,1)).first()
@@ -365,7 +372,6 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
             obj=cf.get_object(container,path.join(prefix,doc.object_name))
             if obj.bytes:
                 seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until 
-                                                                                                # SHOULD BE POSITIVE ootherwise create event_data and trhow an exception-----------------
                 temp_url = obj.get_temp_url(seconds = seconds)
                 rcode=uuid.uuid4()
                 rc_id = db.retrieve_code.insert(campaign = campaign.id ,
@@ -385,6 +391,7 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
                     #                           retry_failed = retry_failed)
 
                 doc.status=DOC_LOCAL_STATE_OK[2]
+                doc.deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None
 
                 doc.bytes=obj.bytes
                 doc.checksum=obj.etag
@@ -397,7 +404,7 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
                 event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='error',
                         event_type=event_type, event_data='{}/{} ERROR: 0 BYTES'.format(container.name,  path.join(prefix,doc.object_name)))             #event_data
             doc.update_record()
-        except (exc.NoSuchContainer,exc.NoSuchObject)  as e:
+        except (exc.NoSuchContainer,exc.NoSuchObject,ValueError)  as e:
             event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='error',event_type=event_type, event_data=e.message)             #event_data
             doc.status=DOC_LOCAL_STATE_ERR[0]
             doc.update_record()
@@ -523,7 +530,7 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
           'text':html2text.html2text(html_body.decode('utf-8')),
           'o:campaign':mg_campaign_id or campaign.mg_campaign_id}
     if not ignore_delivery_time:
-        data['o:deliverytime']=RFC_2822_section_3_3(campaign.available_from)
+        data['o:deliverytime']=RFC_2822_section_3_3(doc.deliverytime or campaign.available_from)
     if campaign.mg_tags:
         data['o:tag']=campaign.mg_tags[0:3] #maximum 3 tags per message
     if test_mode or campaign.test_mode:
@@ -631,8 +638,9 @@ def validating_documents_progress(campaign_id):
 
 def queueing_progress(campaign_id):
     c=get_campaign(campaign_id)
-    count = db(db.doc.status.belongs([DOC_LOCAL_STATE_OK[4],DOC_LOCAL_STATE_ERR[1]])).count()
-    c.status_progress= float(count / c.total_campaign_recipients) * 100.0
+    count = db((db.doc.campaign==c.id) &
+            (db.doc.status.belongs([DOC_LOCAL_STATE_OK[4],DOC_LOCAL_STATE_ERR[1]]))).count()
+    c.status_progress= (float(count) / c.total_campaign_recipients) * 100.0
     c.update_record()
 
 
@@ -715,11 +723,12 @@ def live_change_status(campaign_id):
 # END Progress tracking and status changer ------------------------------------------------------------------------------------------
 def set_campaign_fields_writable(campaign_status):
     l0=['mg_campaign_name', 'test_mode', 'delete_documents_on_expire', 'download_limit',
-            'maximum_bandwith', 'mg_tags','available_from']
+            'maximum_bandwith', 'mg_tags','available_from', 'datetime_format']
     l1=['from_name', 'from_address', 'test_address', 'email_subject', 'html_body',
             'logo', 'logo_file']
     l2=[ 'cf_container_folder', 'index_file', 'service_type', 'available_until']
     wfields = { 'defined' : l0+l1+l2,
+                'documents error': l0+l1+l2,
                 'documents ready' :l0+l1,
                 'in approval' :l0+l1,
                 'approved':l0

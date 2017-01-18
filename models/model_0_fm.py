@@ -41,8 +41,11 @@ def launch_campaign(campaign_id):
     docs=db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated'))
     reset_campaign_progress(campaign_id)
     for d in docs.iterselect():
+        mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else c.mg_acceptance_time
         d.send_task = scheduler.queue_task(send_doc_wrapper,
             pargs=[d.id],
+            start_time=mg_acceptance_time,
+            next_run_time=mg_acceptance_time,
             timeout = myconf.get ('retry.mailgun_timeout'),
             period = myconf.get('retry.period'),
             retry_failed =myconf.get ('retry.retry_failed'))

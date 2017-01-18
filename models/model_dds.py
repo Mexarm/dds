@@ -19,6 +19,7 @@ DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
 REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index,csv file
 DAEMON_TASKS = [ 'progress_tracking', 'status_changer']
+DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def compute_acceptance_time(dt):
     import datetime
@@ -44,6 +45,7 @@ db.define_table('campaign',
                 Field('available_from','datetime',notnull=True),
                 Field('mg_acceptance_time','datetime', writable=False, label='Mailgun acceptance time', compute=lambda(row): compute_acceptance_time(row.available_from)),
                 Field('available_until','datetime'),
+                Field('datetime_format', 'string', label='datetime import format',default=DEFAULT_DATETIME_FORMAT),
                 Field('is_active','boolean',notnull=True,default=True),
                 Field('status','string',default=FM.states[0], writable=False), #Created, Verified, Active, Failed
                 Field('status_progress','float',default='',writable=False),
@@ -76,6 +78,7 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('record_id','string',notnull=True),                #required on index.csv fieldname = record_id
                 Field('object_name','string',notnull=True), #unique=True?              #required on index.csv fieldname = object_name
                 Field('email_address','string',notnull=True),            #required on index.csv fieldname = email_address
+                Field('deliverytime','datetime'), 
                 Field('json','json',default = '{}'),
                 Field('checksum','string',default=0),
                 Field('bytes','integer',default=0),

@@ -1114,3 +1114,56 @@ db(db.campaign.id==7).delete()
 db.commit()
 exit
 exit()
+db(db.campaign.id==8).delete()
+db.commit()
+docs=db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated'))
+docs=db((db.doc.campaign == 6) & (db.doc.status == 'cf validated'))
+docs[0]
+d=docs.select()[0]
+d
+d.json
+tipo in d.json
+'tipo' in d.json
+'tipo1' in d.json
+strdt = '01/12/2017'
+dt=datetime.strptime(strdt)
+dt=datetime.datetime.strptime(strdt)
+dt=datetime.datetime.strptime(strdt,'%d/%m/%Y')
+dt
+print dt
+strdt = '01/12/2017 09:15:00'
+dt=datetime.datetime.strptime(strdt,'%d/%m/%Y %H:%M:%S')
+print dt
+strdt = '01/12/2017 09:15:00#%d/%m/%Y %H:%M:%S'
+strdt.split('#')
+dt=datetime.datetime.strptime(strdt.split('#')[0],strdt.split('#')[1])
+dt
+strdt = '01/12/017 09:15:00#%d/%m/%Y %H:%M:%S'
+dt=datetime.datetime.strptime(strdt.split('#')[0],strdt.split('#')[1])
+strdt = '01/12/2017 09:15:00#%d/%m/%Y %H:%M'
+dt=datetime.datetime.strptime(strdt.split('#')[0],strdt.split('#')[1])
+strdt = '01/12/2017 09:15:00#%d/%m/%Y %H:%M:00'
+dt=datetime.datetime.strptime(strdt.split('#')[0],strdt.split('#')[1])
+exit()
+db(db.campaign.id==1).delete()
+db.commit()
+db(db.campaign.id==1).delete()
+db(db.campaign.id==2).delete()
+db.commit()
+count = db(db.doc.status.belongs([DOC_LOCAL_STATE_OK[4],DOC_LOCAL_STATE_ERR[1]])).count()
+print count
+c = get_campaign(3)
+c.total_campaign_recipients
+db(db.event_data.campaign==5).select()
+r=db(db.event_data.campaign==5).select()
+r=db((db.event_data.campaign==5) & () ).select()
+r[0]
+db(db.doc.campaign==5).select(groupby=db.doc.status)
+print db(db.doc.campaign==5).select(groupby=db.doc.status)
+print db(db.doc.campaign==5).select(db.doc.status, groupby=db.doc.status)
+db(sb.scheduler_task.id>154).select(db.scheduler_task.last_run_time)
+db(db.scheduler_task.id>154).select(db.scheduler_task.last_run_time)
+db(db.scheduler_task.id>154).select()
+db(db.scheduler_task.id > 0).select()
+db(db.scheduler_task.id > 154).select()
+exit()
