@@ -35,3 +35,4 @@ progress.log
 .idea/*
 site-packages/
 logs/
+.pythonhistory
