@@ -568,7 +568,7 @@ def validate_campaign(form):
         form.vars.available_until=form.vars.available_from + relativedelta(years=1)
     else:
         if form.vars.available_until < datetime.datetime.now():
-            form.errors.available_until('available until should be a future date')
+            form.errors.available_until = 'available until should be a future date'
         if form.vars.available_from >= form.vars.available_until:
             form.errors.available_from = 'this date should be before than "available until"'
             form.errors.available_until = 'this date should be later than "available from"'

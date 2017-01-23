@@ -12,12 +12,12 @@ import uuid
 #http://www.mail-tester.com/
 
 SERVICE_TYPE=['Cloudfiles Temp URL', 'DDS Server URL']
-#doc_local_states =['registered', 'ready', 'rejected']
 
 DOC_LOCAL_STATE_OK = [ 'initial', 'validating','cf validated', 'queued (local)', 'queued (mailgun)' ]
 DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
-REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index,csv file
+REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index.csv file
+OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
 DAEMON_TASKS = [ 'progress_tracking', 'status_changer']
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -38,14 +38,15 @@ db.define_table('campaign',
                     compute= lambda (row): get_mg_campaign(mg_get_campaigns(row.mg_domain),row.mg_campaign_name)['id']), #retrieve mg_campaign_id from mailgun ),
                 Field('test_mode','boolean',label='test mode (Mailgun will accept the messages but not deliver)'),
                 Field('cf_container_folder','string',notnull=True,label='Cloudfiles Container/Folder',
-                     requires=IS_NOT_IN_DB(db, 'campaign.cf_container_folder')), #unique=True, gives error in mysql <class 'gluon.contrib.pymysql.err.InternalError'> (1071, u'Specified key was too long; max key length is 767 bytes')
+                     requires=[IS_NOT_EMPTY(),IS_NOT_IN_DB(db, 'campaign.cf_container_folder')]), #unique=True, gives error in mysql <class 'gluon.contrib.pymysql.err.InternalError'> (1071, u'Specified key was too long; max key length is 767 bytes')
                 Field('index_file','string',default='index.csv',notnull=True,label='archivo indice (.CSV)'),
                 Field('service_type','string',notnull=True,label=T('Service type'),
                       default=SERVICE_TYPE[0], requires = IS_IN_SET(SERVICE_TYPE)),
                 Field('available_from','datetime',notnull=True),
                 Field('mg_acceptance_time','datetime', writable=False, label='Mailgun acceptance time', compute=lambda(row): compute_acceptance_time(row.available_from)),
                 Field('available_until','datetime'),
-                Field('datetime_format', 'string', label='datetime import format',default=DEFAULT_DATETIME_FORMAT),
+                Field('datetime_format', 'string', label='datetime import format',default=DEFAULT_DATETIME_FORMAT,
+                    requires=IS_NOT_EMPTY()),
                 Field('is_active','boolean',notnull=True,default=True),
                 Field('status','string',default=FM.states[0], writable=False), #Created, Verified, Active, Failed
                 Field('status_progress','float',default='',writable=False),
