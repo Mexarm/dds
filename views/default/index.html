@@ -15,36 +15,47 @@
 {{if 'message' in globals():}}
 <h2>{{=message}}</h2>
 <p class="lead">{{=T('Document Delivery System')}}</p>
-<ol>
+<ul>
   <li>{{=T('You are successfully running DDS')}}</li>
-</ol>
-<div><p>
-Le presentamos la plataforma de produccion y entrega masiva de documentos electronicos, Document Delivery System® (DDS).
+</ul>
+<div class="cols-md-6 jumbotron">
+<!-- <div class="container">-->
+    <h3>    Document Delivery System® (DDS).</h3>
 
-Producción y Entrega segura de documentos digitales personalizados (PDF), mediante correo electrónico.
-Produccion Masiva desde cientos hasta millones de documentos 
-Ejemplos de Documentos:
+    <p>La plataforma de produccion y entrega masiva de documentos electronicos.</p>
 
-Estados de Cuenta
-Pólizas / Términos y Condiciones
-Cartas
-Informes
-Brochures
+    <p>Producción y Entrega segura de documentos digitales personalizados (PDF), mediante correo electrónico.</p>
 
-Entrega segura mediante campañas de emails personalizados de forma individual, cada email contiene la URL del documento personalizado.
+    <p>Produccion Masiva desde cientos hasta millones de documentos </p>
 
-Panel de control para monitorear la campaña de entrega de correos electrónicos
+<div class="panel panel-default">
+<div class="panel-heading">Ejemplos de Documentos que se pueden entregar mediante DDS:</div>
+<div class="panel-body"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>   Estados de Cuenta</div>
+<div class="panel-body"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>   Pólizas / Términos y Condiciones</div>
+<div class="panel-body"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>   Cartas</div>
+<div class="panel-body"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>   Informes</div>
+<div class="panel-body"><span class="glyphicon glyphicon-ok" aria-hidden="true"></span>   Brochures</div>
+</div>
 
-Confirmación de entrega del correo
-Confirmación de apertura del correo
-Confirmación de acceso al documento enviado
+<p>Entrega segura mediante campañas de emails personalizados de forma individual, cada email contiene la URL del documento personalizado.</p>
 
-Plataforma de almacenamiento de documentos poderosa, segura y escalable, para soportar las mas altas exigencias de almacenamiento de documentos, 
-Infraestructura profesional de entrega de correos electrónicos muy poderosa y escalable, permite integrarse su dominio. (Para envió de email masivos se recomienda crear un dominio dedicado para esta función)
-Esquema de costo “pague por lo que usa” con tarifas  claramente establecidas.
-Seguridad en la producción y entrega
-   Autorización online de la producción
-    </p></div>
+<p>Panel de control para monitorear la campaña de entrega de correos electrónicos</p>
+
+<ul class="list-group">
+<li class="list-group-item">Confirmación de entrega del correo</li>
+<li class="list-group-item">Confirmación de apertura del correo</li>
+<li class="list-group-item">Confirmación de acceso al documento enviado</li>
+</ul>
+<p>
+Plataforma de almacenamiento de documentos poderosa, segura y escalable, para soportar las mas altas exigencias de almacenamiento de documentos, Infraestructura profesional de entrega de correos electrónicos muy poderosa y escalable, permite integrarse su dominio. (Para envió de email masivos se recomienda crear un dominio dedicado para esta función)
+</p>
+<ul class="list-group">
+<li class="list-group-item">Esquema de costo “pague por lo que usa” con tarifas  claramente establecidas.</li>
+<li class="list-group-item">Seguridad en la producción y entrega</li>
+<li class="list-group-item">   Autorización online de la producción</li>
+</ul>
+<!--  </div>-->
+</div>
 
 {{elif 'content' in globals():}}
 {{=content}}
