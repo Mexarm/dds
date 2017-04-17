@@ -7,6 +7,7 @@ from shutil import copyfileobj
 import sys
 import inspect
 #import traceback
+import urllib2
 
 import pyrax
 import pyrax.exceptions as exc
@@ -173,6 +174,25 @@ def download_object(container_name,object_name,savepath,credentials):
                 handle.write(chunk)
         return filename
 
+def prepare_subfolder(subfolder):
+    pth=path.join(abspath(request.folder),subfolder)
+    if not path.isdir(pth):
+        mkdir(pth)
+    return pth
+
+def download_file(url,filename):
+        res=urllib2.urlopen(url)
+        f=open(filename,'wb')
+        f.write(res.read())
+        f.close()
+
+def save_attachment(doc,campaign,rcode):
+    pth=prepare_subfolder('attach_temp/')
+    pth=prepare_subfolder('attach_temp/{}'.format(campaign.uuid))
+    file_ = path.join(pth, doc.object_name)
+    if not path.isfile(file_):
+        download_file(rcode.temp_url,file_)
+	return pth
 
 def register_on_db(campaign_id,update=True):
     #Implementar index ddel archivo original para verificar si no se ha subido ya y soportar retries de esta funcion ---------------
@@ -182,9 +202,7 @@ def register_on_db(campaign_id,update=True):
     sep=',' # ------ support diferent separators--------------
 
                                                                       # Download file
-    pth=path.join(abspath(request.folder),'index_files/')
-    if not path.isdir(pth):
-        mkdir(pth)
+    pth=prepare_subfolder('index_files/')
     campaign = db(db.campaign.id == campaign_id).select().first()
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
@@ -249,9 +267,7 @@ def register_on_dbok(campaign_id,update=True):  #-------------- PENDIENTE TERMIN
     sep=',' # ------ support diferent separators--------------
 
                                                                       # Download file
-    pth=path.join(abspath(request.folder),'index_files/')
-    if not path.isdir(pth):
-        mkdir(pth)
+    pth=prepare_subfolder('index_files/')
     campaign = db(db.campaign.id == campaign_id).select().first()
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
@@ -536,8 +552,11 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'
     #v:myvar
+    files=[("inline",open(logofile))],
+    if campaign.service_type == 'Attachment':
+        files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rcode),'rb').read())))
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
-            files=[("inline",open(logofile))],
+            files=files,
             data=data)
 
 def mg_send_message(domain,api_key,**kwargs):

@@ -11,7 +11,7 @@ import uuid
 #https://172.20.1.105/admin/default/ticket/dds/172.20.1.231.2016-12-09.18-52-56.f0f57a04-acb2-4fce-9f7b-78204db83907
 #http://www.mail-tester.com/
 
-SERVICE_TYPE=['Cloudfiles Temp URL', 'DDS Server URL']
+SERVICE_TYPE=['Attachment','Cloudfiles Temp URL', 'DDS Server URL']
 
 DOC_LOCAL_STATE_OK = [ 'initial', 'validating','cf validated', 'queued (local)', 'queued (mailgun)' ]
 DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
