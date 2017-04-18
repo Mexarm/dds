@@ -189,10 +189,10 @@ def download_file(url,filename):
 def save_attachment(doc,campaign,rcode):
     pth=prepare_subfolder('attach_temp/')
     pth=prepare_subfolder('attach_temp/{}'.format(campaign.uuid))
-    file_ = path.join(pth, doc.object_name)
-    if not path.isfile(file_):
-        download_file(rcode.temp_url,file_)
-	return pth
+    fullname = path.join(pth, doc.object_name)
+    if not path.isfile(fullname):
+        download_file(rcode.temp_url,fullname)
+    return fullname
 
 def register_on_db(campaign_id,update=True):
     #Implementar index ddel archivo original para verificar si no se ha subido ya y soportar retries de esta funcion ---------------
@@ -552,9 +552,9 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'
     #v:myvar
-    files=[("inline",open(logofile))],
+    files=[("inline",open(logofile))]
     if campaign.service_type == 'Attachment':
-        files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rcode),'rb').read())))
+        files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
             files=files,
             data=data)
