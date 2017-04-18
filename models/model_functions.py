@@ -517,7 +517,7 @@ def get_context(doc,campaign,rc):
             object_name = doc.object_name,
             email_address = doc.email_address
             )
-    if url_type: data[url]=rc[url_type]
+    if url_type: data['url']=rc[url_type]
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
             uuid = campaign.uuid,
