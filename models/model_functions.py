@@ -492,7 +492,7 @@ def process_mg_response(*args,**kwargs):
         doc.status=DOC_LOCAL_STATE_OK[4] if 'Queued' in res.json()['message'] else None
         category = 'info'
     else:
-        doc.status=DOC_LOCAL_STATE_ERR[2]
+        doc.status=DOC_LOCAL_STATE_ERR[1]
 
     doc.mailgun_id=res.json()['id'] if 'id' in res.json() else None
     update_doc=True
@@ -512,12 +512,12 @@ def process_mg_response(*args,**kwargs):
 
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
-    url_type= [ 'temp_url', 'dds_url' ][SERVICE_TYPE.index(campaign.service_type)]
+    url_type = { 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
     data = dict(record_id = doc.record_id,
             object_name = doc.object_name,
-            email_address = doc.email_address,
-            url=rc[url_type],
+            email_address = doc.email_address
             )
+    if url_type: data[url]=rc[url_type]
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
             uuid = campaign.uuid,
