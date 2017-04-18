@@ -654,6 +654,7 @@ def validating_documents_progress(campaign_id):
 
     campaign.status_progress = progress1+progress2
     campaign.update_record()
+    db.commit()
 
 def queueing_progress(campaign_id):
     c=get_campaign(campaign_id)
@@ -661,7 +662,7 @@ def queueing_progress(campaign_id):
             (db.doc.status.belongs([DOC_LOCAL_STATE_OK[4],DOC_LOCAL_STATE_ERR[1]]))).count()
     c.status_progress= (float(count) / c.total_campaign_recipients) * 100.0
     c.update_record()
-
+    db.commit()
 
 def validating_documents_change_status(campaign_id):
 
