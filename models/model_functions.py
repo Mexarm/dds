@@ -57,6 +57,17 @@ def mg_update_local_campaign_stats(campaign_id): #update a campaign with the inf
         #r1.json() = {u'unique': {u'clicked': {u'recipient': 2, u'link': 4}, u'opened': {u'recipient': 2}}, u'total': {u'complained': 0, u'delivered': 6, u'clicked': 9, u'opened': 14, u'dropped': 0, u'bounced': 0, u'sent': 6, u'unsubscribed': 0}}
         #r2.json() = {u'unsubscribed_count': 0, u'name': u'dds_demo1', u'created_at': u'Wed, 21 Dec 2016 23:59:35 GMT', u'clicked_count': 9, u'opened_count': 14, u'submitted_count': 6, u'delivered_count': 6, u'bounced_count': 0, u'complained_count': 0, u'id': u'xka6g', u'dropped_count': 0}
 
+def get_events(domain, params):
+    return requests.get(
+        "https://api.mailgun.net/v3/{}/events".format(domain),
+        auth=('api', myconf.get('mailgun.api_key')),
+        params=params)
+
+def get_events_page(url):
+    return requests.get(
+            url,
+            auth=('api', myconf.get('mailgun.api_key')))
+
 #--------------utilerias---------
 def get_container_name(uri):
     return uri.split('/')[0] if '/' in uri else uri
@@ -91,6 +102,69 @@ def get_mg_campaign(res,name):
             if c['name'] == name:
                 return c
 
+def get_latest_dt(dt1,dt2):
+    if (not dt1 and not dt2): return
+    if not dt1: return dt2
+    if not dt2: return dt1
+    if dt1>dt2: return dt1
+    return dt2
+
+def store_mg_event(event_dict): #store an event returned by mailgun example: event_dict = response.json()['items'][0]
+    r=db(db.mg_event.event_id == event_dict['id']).select()
+    if r: return
+    e=Storage(event_dict)
+    doc=db(db.doc.mailgun_id ==e['message']['headers']['message-id']).select(limitby=(0,1)).first()
+    if not doc: return
+    mg_event=dict()
+    mg_event['doc']=doc.id
+    mg_event['campaign']=doc.campaign
+    mg_event['event_id']=e.id
+    struct_time=time.gmtime(e.timestamp)
+    dt=datetime.datetime.fromtimestamp(time.mktime(struct_time))
+    mg_event['event_timestamp_dt']=dt
+    mg_event['event_timestamp']=e.timestamp
+    mg_event['event_ip']=e.ip
+    mg_event['event_']=e.event
+    mg_event['event_log_level']=e['log-level']
+    mg_event['event_recipient']=e.recipient
+    mg_event['event_campaigns']=e.campaigns
+    mg_event['event_tags']=e.tags
+    mg_event['event_client_type']=e['client-info']['client-type'] if e['client-info'] else None
+    mg_event['event_client_os']=e['client-info']['client-os'] if e['client-info'] else None
+    mg_event['event_client_device_type']=e['client-info']['device-type'] if e['client-info'] else None
+    mg_event['event_client_name']=e['client-info']['client-name'] if e['client-info'] else None
+    mg_event['event_client_user_agent']=e['client-info']['user-agent'] if e['client-info'] else None
+    mg_event['event_geolocation_country']=e.geolocation['country'] if e.geolocation else None
+    mg_event['event_geolocation_region']=e.geolocation['region'] if e.geolocation else None
+    mg_event['event_geolocation_city']=e.geolocation['city'] if e.geolocation else None
+    mg_event['event_json']=event_dict
+    r=db.mg_event.insert(**mg_event)
+    if e.event in [ 'accepted', 'rejected', 'delivered', 'failed', 'opened', 'clicked', 'unsubscribed', 'complained', 'stored' ]:
+        field=e.event + '_on'
+        doc[field]=get_latest_dt(dt,doc[field])
+        doc.update_record()
+    db.commit()
+    return r
+
+
+def store_mg_events(events_dict):
+    for e in events_dict['items']:
+        store_mg_event(e)
+# to-do:get the next page
+
+def retrieve_events_for_doc(doc_id):
+    doc=get_doc(doc_id)
+    params=dict()
+    params['message-id']=doc.mailgun_id
+    res=get_events(doc.campaign.mg_domain,params)
+    if res.status_code == 200:
+        store_mg_events(res.json())
+
+def retrieve_events_for_campaigns():
+    l=['approved','queueing','live','finished']
+    for c in db(db.campaign.status.belongs(l)).select():
+        for d in db((db.doc.campaign==c.id) & (db.doc.mailgun_id != '')).select():
+            retrieve_events_for_doc(d.id)
 
 #--------------------------rackspace cloudfiles ------------------
 def container_object_count_total_bytes(container_name,credentials):
@@ -494,7 +568,7 @@ def process_mg_response(*args,**kwargs):
     else:
         doc.status=DOC_LOCAL_STATE_ERR[1]
 
-    doc.mailgun_id=res.json()['id'] if 'id' in res.json() else None
+    doc.mailgun_id=res.json()['id'].strip('<').strip('>') if 'id' in res.json() else None
     update_doc=True
     if 'update_doc' in kwargs:
         if not kwargs['update_doc']:
