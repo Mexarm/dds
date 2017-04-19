@@ -18,7 +18,7 @@ DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
 REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index.csv file
 OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
-DAEMON_TASKS = [ 'progress_tracking', 'status_changer']
+DAEMON_TASKS = [ ('progress_tracking',30),('status_changer',30),('retrieve_events_for_campaigns',600)] # (task_name, period in seconds)
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def compute_acceptance_time(dt):
@@ -29,6 +29,13 @@ def compute_acceptance_time(dt):
         return dt + relativedelta(days=-2)
     else:
         return dt
+
+def mysql_add_index(table,column):
+    if (db._uri[:5] == 'mysql'):
+        params=dict(table=table,column=column,idx_name='{}__idx'.format(column))
+        result=db.executesql("SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='{table}' AND index_name='{idx_name}';".format(**params)) #returns ((1L,),) if the index exists
+        if not result[0][0]:
+            return db.executesql("ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
 
 db.define_table('campaign',
                 Field('uuid','string',default=uuid.uuid4(), label='Campaign UUID', writable=False,readable=False),
@@ -79,7 +86,7 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('record_id','string',notnull=True),                #required on index.csv fieldname = record_id
                 Field('object_name','string',notnull=True), #unique=True?              #required on index.csv fieldname = object_name
                 Field('email_address','string',notnull=True),            #required on index.csv fieldname = email_address
-                Field('deliverytime','datetime'), 
+                Field('deliverytime','datetime'),
                 Field('json','json',default = '{}'),
                 Field('checksum','string',default=0),
                 Field('bytes','integer',default=0),
@@ -89,8 +96,19 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('validation_task','integer'),
                 Field('status','string',default=DOC_LOCAL_STATE_OK[0]),
                 Field('send_retry_active','boolean'),
-                Field('mailgun_id','string')
+                Field('mailgun_id','string'),
+                Field('accepted_on','datetime',writable=False), #analitycs fields
+                Field('rejected_on','datetime',writable=False),
+                Field('delivered_on','datetime',writable=False),
+                Field('failed_on','datetime',writable=False),
+                Field('opened_on','datetime',writable=False),
+                Field('clicked_on','datetime',writable=False),
+                Field('unsubscribed_on','datetime',writable=False),
+                Field('complained_on','datetime',writable=False),
+                Field('stored_on','datetime',writable=False)
                 )
+
+mysql_add_index('doc','mailgun_id')
 
 db.define_table('retrieve_code', Field('doc','reference doc'),
                 Field('campaign','reference campaign'),
@@ -99,6 +117,8 @@ db.define_table('retrieve_code', Field('doc','reference doc'),
                 Field('available_until','datetime', compute = lambda row : db(db.campaign.id == row.campaign).select(db.campaign.available_until,limitby = (0,1)).first().available_until) ,
                 Field('rcode','string',unique=True,length=UUID_LENGTH, notnull=True)
                 )
+
+mysql_add_index('retrieve_code','rcode')
 
 db.define_table('event_data',
                 Field('campaign','reference campaign'),
@@ -110,5 +130,29 @@ db.define_table('event_data',
                 Field('response_status_code','integer'),
                 Field('bandwith_consumed','integer'),
                 Field('created_by_task','string',length=UUID_LENGTH),
-                Field('from_ip','string'),
+                #Field('from_ip','string'),
                 auth.signature)
+
+db.define_table('mg_event',
+            Field('campaign','reference campaign',notnull=True),
+            Field('doc','reference doc',notnull=True),
+            Field('event_id','string',length=30,unique=True,notnull=True),
+            Field('event_timestamp_dt','datetime',notnull=True), # UTC time
+            Field('event_timestamp','double',notnull=True), #unix EPOCH
+            Field('event_ip','string',length=15),
+            Field('event_','string',length=15,notnull=True),
+            Field('event_log_level','string',length=10),
+            Field('event_recipient','string'),
+            Field('event_campaigns','list:string'),
+            Field('event_tags','list:string'),
+            Field('event_client_type','string'),
+            Field('event_client_os','string'),
+            Field('event_client_device_type','string'),
+            Field('event_client_name','string'),
+            Field('event_client_user_agent','string'),
+            Field('event_geolocation_country','string'),
+            Field('event_geolocation_region','string'),
+            Field('event_geolocation_city','string'),
+            Field('event_json','json')
+            )
+mysql_add_index('mg_event','event_id')
