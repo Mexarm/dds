@@ -28,6 +28,7 @@ private/*
 !private/*.example
 logos/*
 index_files/*
+attach_temp/*
 static/temp
 progress.log
 *.sublime-project
