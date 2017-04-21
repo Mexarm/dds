@@ -10,7 +10,7 @@
  <thead>
   <tr>
     <th>ID</th>
-    <th>Domain</th> 
+    <th>Domain</th>
     <th>Name</th>
     <th>Container/Folder</th>
     <th>Service Type</th>
@@ -29,7 +29,7 @@
 {{if i == items_per_page: break}}
 <tr>
     <td><a href={{=URL('edit_campaign',args=[row.id])}}>{{=row.id}}</a></td>
-    <td>{{=row.mg_domain}}</td> 
+    <td>{{=row.mg_domain}}</td>
     <td>{{=row.mg_campaign_name}} ({{=row.mg_campaign_id}})</td>
     <td>{{=row.cf_container_folder}}</td>
     <td>{{=row.service_type}}</td>
@@ -39,9 +39,9 @@
         <div id="status_progress_{{=row.id}}">
             {{if row.status in FM_STATES_WITH_PROGRESS_TRACKING:}}
         {{=row.status_progress}}%
-        {{pass}} 
+        {{pass}}
         </div></td>
-    <td>{{=row.total_campaign_recipients}}</td>
+        <td>{{=row.total_campaign_recipients}}<br><span><a href={{=URL('list_docs',args=[row.id])}}>{{=T('recipients')}}</a></span></td>
     <td>{{=row.container_objects}}</td>
     <td>{{=row.from_address}}</td>
     <td>{{=row.email_subject}}</td>
@@ -53,7 +53,7 @@
         </tbody>
 </table>
 </div>
-<div>
+<div style="width:800px; margin:0 auto;">
 	{{if page:}}
 	<a href="{{=URL(args=[page-1])}}" class="btn btn-primary" role="button">previous</a>
 	{{pass}}

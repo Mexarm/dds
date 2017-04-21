@@ -124,6 +124,29 @@ def list_campaign():
     return dict(rows=rows,page=page,items_per_page=items_per_page,args=request.args,FM_STATES_WITH_PROGRESS_TRACKING=FM_STATES_WITH_PROGRESS_TRACKING)
 
 @auth.requires_login()
+def list_docs():
+    campaign_id=int(request.args[0])
+    constraints={'doc':db.doc.campaign==campaign_id}
+    fields=[db.doc.record_id,db.doc.object_name,db.doc.email_address,
+            db.doc.deliverytime,
+            db.doc.status,db.doc.accepted_on,db.doc.delivered_on,
+            db.doc.failed_on,db.doc.opened_on,db.doc.clicked_on,
+            db.mg_event.event_timestamp_dt,db.mg_event.event_,db.mg_event.event_ip,
+            db.mg_event.event_log_level,db.mg_event.event_recipient,db.mg_event.event_tags,
+            db.mg_event.event_geolocation_country]
+    smartgrid=SQLFORM.smartgrid(db.doc,
+            linked_tables=['mg_event'],
+            constraints=constraints,
+            args=request.args[:1],
+            fields=fields,
+            deletable=False,
+            editable=False,
+            create=False,
+            maxtextlength=35
+            )
+    return locals()
+
+@auth.requires_login()
 def get_fm_buttons():
     campaign_id = int(request.vars.campaign_id)
     return get_fm_action_buttons(campaign_id)
