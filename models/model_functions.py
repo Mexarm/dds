@@ -8,6 +8,7 @@ import sys
 import inspect
 #import traceback
 import urllib2
+import hashlib
 
 import pyrax
 import pyrax.exceptions as exc
@@ -166,6 +167,17 @@ def retrieve_events_for_campaigns():
         for d in db((db.doc.campaign==c.id) & (db.doc.mailgun_id != '')).select():
             retrieve_events_for_doc(d.id)
 
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def verify_checksum(cs,filename):
+    if cs != md5(filename):
+        remove(filename)
+        raise ValueError('checksum error for file {}'.format(filename))
 #--------------------------rackspace cloudfiles ------------------
 def container_object_count_total_bytes(container_name,credentials):
     """
@@ -246,6 +258,7 @@ def download_object(container_name,object_name,savepath,credentials):
         with open(filename,'wb') as handle:
             for chunk in data_chunks:
                 handle.write(chunk)
+        verify_checksum(obj.etag,filename)
         return filename
 
 def prepare_subfolder(subfolder):
@@ -266,6 +279,7 @@ def save_attachment(doc,campaign,rcode):
     fullname = path.join(pth, doc.object_name)
     if not path.isfile(fullname):
         download_file(rcode.temp_url,fullname)
+    verify_checksum(doc.checksum,fullname)
     return fullname
 
 def register_on_db(campaign_id,update=True):
