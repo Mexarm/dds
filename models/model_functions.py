@@ -183,6 +183,8 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
     import os
     import shutil
     attach_temp = path.join(request.folder , 'attach_temp')
+    if not path.isdir(attach_temp):
+        return
     for c_uuid in os.listdir(attach_temp):
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True

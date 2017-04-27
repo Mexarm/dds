@@ -22,7 +22,8 @@ def __schedule_daemon_task(task_tuple):
                 pvars={},
                 period = task_period,
                 timeout = task_period - 1,
-                repeats= 0
+                repeats = 0, # 0 = unlimited
+                retry_failed = -1 # -1  = unlimited
                 )
     db.commit()
 
