@@ -192,7 +192,7 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
             if c.status == 'queuing':
                 reclaim_attach_storage_campaign(c_uuid)
                 rmtree=False
-        if rmtree: shutil.rmtree(path.join(attach_temp),c_uuid)
+        if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
 
 def reclaim_attach_storage_campaign(c_uuid):
     import os
