@@ -161,7 +161,7 @@ def retrieve_events_for_doc(doc_id):
     if res.status_code == 200:
         store_mg_events(res.json())
 
-def retrieve_events_for_campaigns():
+def daemon_retrieve_events_for_campaigns():
     l=['approved','queueing','live','finished']
     for c in db(db.campaign.status.belongs(l)).select():
         for d in db((db.doc.campaign==c.id) & (db.doc.mailgun_id != '')).select():
@@ -178,6 +178,30 @@ def verify_checksum(cs,filename):
     if cs != md5(filename):
         remove(filename)
         raise ValueError('checksum error for file {}'.format(filename))
+
+def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim storage
+    import os
+    import shutil
+    attach_temp = path.join(request.folder , 'attach_temp')
+    for c_uuid in os.listdir(attach_temp):
+        c=get_campaign_by_uuid(c_uuid)
+        rmtree=True
+        if c:
+            if c.status == 'queuing':
+                reclaim_attach_storage_campaign(c_uuid)
+                rmtree=False
+        if rmtree: shutil.rmtree(path.join(attach_temp),c_uuid)
+
+def reclaim_attach_storage_campaign(c_uuid):
+    import os
+    attach_temp = path.join(request.folder , 'attach_temp')
+    c_folder = path.join(attach_temp,c_uuid)
+    c=get_campaign_by_uuid(c_uuid)
+    for f in os.listdir(cfolder):
+        row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='cf validated') ).select(limitby=(0,1)).first()
+        if not row:
+            remove(path.join(c_folder,f))
+
 #--------------------------rackspace cloudfiles ------------------
 def container_object_count_total_bytes(container_name,credentials):
     """
@@ -660,6 +684,9 @@ def get_rcode(doc_id,campaign_id):
 def get_campaign(campaign_id):
     return db(db.campaign.id==campaign_id).select(limitby=(0,1)).first()
 
+def get_campaign_by_uuid(campaign_uuid):
+    return db(db.campaign.uuid==campaign_uuid).select(limitby=(0,1)).first()
+
 def get_doc(doc_id):
     return db(db.doc.id==doc_id).select(limitby=(0,1)).first()
 #-------------------------------------------------------------------------------------------------------------------
@@ -700,10 +727,10 @@ def do_function_on_records(query,f):
         f(row.status)(row.id)
         db.commit()
 
-def progress_tracking():
+def daemon_progress_tracking():
     do_function_on_records(db.campaign.status.belongs(FM_STATES_WITH_PROGRESS_TRACKING),do_progress_tracking_for)
 
-def status_changer():
+def daemon_status_changer():
     do_function_on_records(db.campaign.status.belongs(FM_STATES_TO_UPDATE),do_change_status_for)
 
 

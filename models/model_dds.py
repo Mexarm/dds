@@ -18,7 +18,7 @@ DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
 REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index.csv file
 OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
-DAEMON_TASKS = [ ('progress_tracking',30),('status_changer',30),('retrieve_events_for_campaigns',600)] # (task_name, period in seconds)
+DAEMON_TASKS = [ ('daemon_progress_tracking',30),('daemon_status_changer',30),('daemon_retrieve_events_for_campaigns',600),('daemon_reclaim_attach_storage',300)] # (task_name, period in seconds)
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def compute_acceptance_time(dt):
@@ -109,6 +109,8 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 )
 
 mysql_add_index('doc','mailgun_id')
+mysql_add_index('doc','status')
+mysql_add_index('doc','object_name')
 
 db.define_table('retrieve_code', Field('doc','reference doc'),
                 Field('campaign','reference campaign'),
