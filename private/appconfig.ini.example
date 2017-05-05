@@ -1,6 +1,7 @@
 ; App configuration
 [app]
 name        = Document Delivery System
+brand       = DDS
 author      = Armando Hernandez <armando.hernandez@qualitypost.com.mx>
 description = we deliver your digital documents to your inbox.
 keywords    = document delivery, qualitypost, estados de cuenta, web2py, python, framework
@@ -45,6 +46,24 @@ api_url = https://api.mailgun.net/v3
 domain = example.com
 api_key = <your api key>
 test_only_campaign_id = < a campaign id for test purposes only>
+
+[eventpoll]
+;time slice in seconds.A day (86400 seconds) will be divided by this value,
+;and a task will be created to retrieve the events for each individual time
+;slice, ex. if time_slice = 30, at the end of the day we will have 2880 event
+;retrieve tasks.This tasks will be processed be the task scheduler workers.
+time_slice = 30
+;daemon_period is an integer. event poll tasks will be created every
+;(daemon_period*time_slice) seconds
+daemon_period = 10
+;task_period in seconds. task_evt_poll will retrieve events every
+;(task_period*time_slice) seconds
+task_period=10
+;task_repeat will be executed task_repeat times
+task_repeat=10
+;paid_accout = Y (or N) if your mailgun account is a "paid account" the poller
+;will try to retrieve events for the last 30 days instead of 2 days
+paid_account = Y
 
 ; dds
 [dds]

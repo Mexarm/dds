@@ -8,6 +8,7 @@ import sys
 import inspect
 #import traceback
 import urllib2
+from urlparse import urlparse,parse_qs
 import hashlib
 
 import pyrax
@@ -22,6 +23,7 @@ from os import path,mkdir,system,remove
 from email.utils import formatdate
 
 URL_KEY = myconf.get('dds.url_key')
+
 # -------------mailgun--------------
 
 def mg_get_domains():
@@ -34,14 +36,6 @@ def mg_get_campaigns(domain):
     return requests.get(
         "https://api.mailgun.net/v3/{}/campaigns".format(domain),
         auth=('api', myconf.get('mailgun.api_key')))
-
-def mg_update_local_campaigns_stats():
-    for d in db().select(db.campaign.mg_domain, distinct=True): #distincts domains in campaigns
-        now = datetime.datetime.now()
-        for i in mg_get_campaigns(d.mg_domain).json()['items']:
-            i.update(dict(stats_timestamp = now))
-            db(db.campaign.mg_campaign_id == i['id']).update(mg_stats=i)
-     #db.commit() the calling function should commit
 
 def mg_update_local_campaign_stats(campaign_id): #update a campaign with the information retrieved from mailgun
     c = get_campaign(campaign_id)
@@ -58,17 +52,69 @@ def mg_update_local_campaign_stats(campaign_id): #update a campaign with the inf
         #r1.json() = {u'unique': {u'clicked': {u'recipient': 2, u'link': 4}, u'opened': {u'recipient': 2}}, u'total': {u'complained': 0, u'delivered': 6, u'clicked': 9, u'opened': 14, u'dropped': 0, u'bounced': 0, u'sent': 6, u'unsubscribed': 0}}
         #r2.json() = {u'unsubscribed_count': 0, u'name': u'dds_demo1', u'created_at': u'Wed, 21 Dec 2016 23:59:35 GMT', u'clicked_count': 9, u'opened_count': 14, u'submitted_count': 6, u'delivered_count': 6, u'bounced_count': 0, u'complained_count': 0, u'id': u'xka6g', u'dropped_count': 0}
 
-def get_events(domain, params):
+def get_events(domain, query_options):
     return requests.get(
         "https://api.mailgun.net/v3/{}/events".format(domain),
         auth=('api', myconf.get('mailgun.api_key')),
-        params=params)
+        params=query_options)
 
 def get_events_page(url):
     return requests.get(
             url,
             auth=('api', myconf.get('mailgun.api_key')))
 
+def daemon_event_poll_short(): #remove
+    event_poll()
+def daemon_event_poll_medium(): #remove
+    event_poll()
+def daemon_event_poll_daily(): #remove
+    event_poll()
+
+def event_poll():#remove
+    for d in db().select(db.campaign.mg_domain, distinct=True): #distincts domains in campaigns
+       daemon_event_poll_for_domain(d['mg_domain'])
+
+def daemon_event_poll_for_domain(domain): #remove
+    ptask=scheduler.task_status(W2P_TASK.uuid)
+    seconds = ptask.period*2
+    end = time.time()
+    begin = end-seconds
+    qopt= dict(begin= begin,end=end)
+    store_mg_events(get_events(domain,qopt))
+
+def task_evt_poll(domain,begin_ts,end_ts):
+    qopt= dict(begin= begin_ts,end=end_ts)
+    store_mg_events(get_events(domain,qopt))
+
+def daemon_master_event_poll():
+    now_ts = time.time()
+    max = db.poll_task_info.end_ts.max()
+    latest_poll_edge = db().select(max).first()[max] # latest end timestamp
+    past_days = 30 if EP_PAID_ACCOUNT == 'Y' else 2
+    beg_date = (datetime.datetime.utcnow() - datetime.timedelta(days=past_days)).replace(hour=0,minute=0,second=0,microsecond=0)
+    if latest_poll_edge:
+        if (now_ts - latest_poll_edge) < (past_days * 60 * 60 * 24):
+           beg_date = datetime.datetime.fromtimestamp(latest_poll_edge)
+    tbeg = (beg_date -datetime.datetime(1970,1,1)).total_seconds()
+    tend = now_ts + (EP_DAEMON_PERIOD * EP_TIME_SLICE)
+
+    domains = [ r['mg_domain'] for r in  db().select(db.campaign.mg_domain, distinct=True)] #distincts domains in campaigns
+    while tbeg < tend:
+        end_ts= tbeg+ EP_TIME_SLICE
+        tend_dt= datetime.datetime.fromtimestamp(end_ts)
+        for d in domains:
+            r=scheduler.queue_task(task_evt_poll,
+                    pargs =[d,tbeg,end_ts],
+                    start_time = tend_dt,
+                    next_run_time= tend_dt,
+                    period = EP_TASK_PERIOD*EP_TIME_SLICE,
+                    repeats = EP_TASK_REPEAT,
+                    retry_failed = -1)
+            db.poll_task_info.insert(uuid=r.uuid,
+                    begin_ts=tbeg,
+                    end_ts=end_ts)
+            db.commit()
+        tbeg=end_ts
 #--------------utilerias---------
 def get_container_name(uri):
     return uri.split('/')[0] if '/' in uri else uri
@@ -147,25 +193,15 @@ def store_mg_event(event_dict): #store an event returned by mailgun example: eve
     db.commit()
     return r
 
-
-def store_mg_events(events_dict):
-    for e in events_dict['items']:
+def store_mg_events(response):
+    if response.status_code != 200: return
+    rdict=response.json()
+    if not rdict['items']: return
+    for e in rdict['items']:
         store_mg_event(e)
-# to-do:get the next page
-
-def retrieve_events_for_doc(doc_id):
-    doc=get_doc(doc_id)
-    params=dict()
-    params['message-id']=doc.mailgun_id
-    res=get_events(doc.campaign.mg_domain,params)
-    if res.status_code == 200:
-        store_mg_events(res.json())
-
-def daemon_retrieve_events_for_campaigns():
-    l=['approved','queueing','live','finished']
-    for c in db(db.campaign.status.belongs(l)).select():
-        for d in db((db.doc.campaign==c.id) & (db.doc.mailgun_id != '')).select():
-            retrieve_events_for_doc(d.id)
+    next_page=rdict['paging']['next']
+    if next_page:
+        store_mg_events(get_events_page(next_page))
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -309,71 +345,6 @@ def save_attachment(doc,campaign,rcode):
     return fullname
 
 def register_on_db(campaign_id,update=True):
-    #Implementar index ddel archivo original para verificar si no se ha subido ya y soportar retries de esta funcion ---------------
-    import pyrax.utils as utils
-    from gluon.fileutils import abspath
-
-    sep=',' # ------ support diferent separators--------------
-
-                                                                      # Download file
-    pth=prepare_subfolder('index_files/')
-    campaign = db(db.campaign.id == campaign_id).select().first()
-    credentials=get_credentials_storage()
-    container,prefix=split_uri(campaign.cf_container_folder)
-    index_file=campaign.index_file
-    object_name=path.join(prefix,index_file)
-    #print '!clear!Downloading {}/{}...'.format(container,object_name)
-    dld_file=download_object(container,object_name,pth,credentials)
-    ok=0
-    errors=0
-    messages = list()
-    with open(dld_file,'r') as handle:                                                            # check UNICODE SUPPORT!!!
-        hdr=handle.next() # read header (first line) strip \n
-        hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
-        if not set(REQUIRED_FIELDS) < set(hdr_list):
-            #aqui cambiar estado a error "documents error"
-            raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS),
-                                                                                  container,object_name))
-        db.doc.campaign.default=campaign_id
-        n=0
-        for line in handle: # enumeration needed? optimize for millions records
-            values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
-            row=Storage(make_doc_row(dict(zip(hdr_list, values))))   ## USE TRY EXCEPT TO CATCH ERRORS IN RECORDS (FEWER OR MORE FIELDS)!!
-            q=(db.doc.record_id==row.record_id) & (db.doc.campaign==campaign_id)
-            doc=db(q).select(limitby=(0,1)).first()
-
-            if doc:
-                if update:
-                    ret = db(q).validate_and_update(**row)
-                    valid = ret.updated >0
-
-            else:
-                ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
-                valid=ret.id >0
-            #ret.updated ----------------------------------------------------------------------------
-            if not valid:
-                messages += [ 'could not insert or update in table "doc": {}'.format(str(row))  ]
-                errors+=1
-            else:
-                ok+=1
-            #print '!clear!{} registros leidos (ok={},err={})'.format(n+1,ok,errors)
-            n+=1
-            db.commit() #commit each row to avoid lock of the db
-
-    remove(dld_file)
-    #db.commit() #maybe commit each row to avoid lock of the db
-
-    #ret = scheduler.queue_task(validate_files2,pvars=dict(campaign_id=campaign_id),timeout=15 * ok, sync_output=60 ) # timeout = 15secs per record
-
-    ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=15 * ok) # timeout = 15secs per record
-
-    tasks = db.campaign(campaign_id).tasks
-    tasks =  tasks + [ret.id] if tasks else [ret.id]
-    db(db.campaign.id==campaign_id).update(tasks=tasks, total_campaign_recipients=n)
-    db.commit()
-    return dict(ok=ok,errors=errors,messages=messages)
-
-def register_on_dbok(campaign_id,update=True):  #-------------- PENDIENTE TERMINAR
     #Implementar index ddel archivo original para verificar si no se ha subido ya y soportar retries de esta funcion ---------------
     import pyrax.utils as utils
     from gluon.fileutils import abspath
@@ -735,7 +706,6 @@ def daemon_progress_tracking():
 def daemon_status_changer():
     do_function_on_records(db.campaign.status.belongs(FM_STATES_TO_UPDATE),do_change_status_for)
 
-
 def do_progress_tracking_for(campaign_status):
     """
         returns a function that reports the progress of the campaign according to its status
@@ -752,7 +722,6 @@ def do_change_status_for(campaign_status):
             'scheduled':lambda campaign_id : sheduled_change_status(campaign_id),
             'live':lambda campaign_id : live_change_status(campaign_id)
             }[campaign_status]
-
 
 def validating_documents_progress(campaign_id):
     campaign=get_campaign(campaign_id)

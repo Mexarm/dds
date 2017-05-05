@@ -5,7 +5,7 @@
 # Customize your APP title, subtitle and menus here
 # ----------------------------------------------------------------------------------------------------------------------
 
-response.logo = A(B('qualitypost'), XML('&reg;&nbsp;'),
+response.logo = A(B(myconf.get('app.brand')), XML('&reg;&nbsp;'),
                   _class="navbar-brand", _href=URL('index'),
                   _id="qp-logo")
 response.title = request.application.replace('_', ' ').title()

@@ -18,7 +18,19 @@ DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
 REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index.csv file
 OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
-DAEMON_TASKS = [ ('daemon_progress_tracking',30),('daemon_status_changer',30),('daemon_retrieve_events_for_campaigns',600),('daemon_reclaim_attach_storage',300)] # (task_name, period in seconds)
+
+#event poll params
+EP_TIME_SLICE = int(myconf.get('eventpoll.time_slice'))
+EP_DAEMON_PERIOD = int(myconf.get('eventpoll.daemon_period'))
+EP_TASK_PERIOD = int(myconf.get('eventpoll.task_period'))
+EP_TASK_REPEAT = int(myconf.get('eventpoll.task_repeat'))
+EP_PAID_ACCOUNT = myconf.get('eventpoll.paid_account')
+
+DAEMON_TASKS = [ ('daemon_progress_tracking',30),
+                ('daemon_status_changer',30),
+                ('daemon_master_event_poll',EP_DAEMON_PERIOD*EP_TIME_SLICE),
+                ('daemon_reclaim_attach_storage',300)] # (task_name, period in seconds)
+
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def compute_acceptance_time(dt):
@@ -158,3 +170,10 @@ db.define_table('mg_event',
             Field('event_json','json')
             )
 mysql_add_index('mg_event','event_id')
+
+db.define_table('poll_task_info',
+        Field('uuid','string'), #the uuid of the task as returned by the scheduler
+        Field('begin_ts','double',notnull=True),
+        Field('end_ts','double',notnull=True))
+mysql_add_index('poll_task_info','uuid')
+mysql_add_index('poll_task_info','end_ts')
