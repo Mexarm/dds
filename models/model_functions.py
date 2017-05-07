@@ -82,11 +82,11 @@ def daemon_event_poll_for_domain(domain): #remove
     qopt= dict(begin= begin,end=end)
     store_mg_events(get_events(domain,qopt))
 
-def task_evt_poll(domain,begin_ts,end_ts):
+def task_evt_poll(domain,begin_ts,end_ts): #remove
     qopt= dict(begin= begin_ts,end=end_ts)
     store_mg_events(get_events(domain,qopt))
 
-def daemon_master_event_poll():
+def daemon_master_event_poll_old(): #remove
     now_ts = time.time()
     max = db.poll_task_info.end_ts.max()
     latest_poll_edge = db().select(max).first()[max] # latest end timestamp
@@ -115,6 +115,27 @@ def daemon_master_event_poll():
                     end_ts=end_ts)
             db.commit()
         tbeg=end_ts
+
+def daemon_master_event_poll():
+    now_ts = time.time()
+    max = db.scheduler_task.id.max()
+    latest_task_id=db(db.scheduler_task.task_name== 'task_evt_poll').select(max).first()[max]
+    latest_task=scheduler.task_status(latest_task_id) if  latest_task_id else None
+    t2 = json.loads(latest_task.args)[2] if latest_task else now_ts - EP_DELAY
+    domains = [ r['mg_domain'] for r in  db().select(db.campaign.mg_domain, distinct=True)] #distincts domains in campaigns
+    tsk_t1 = t2 - EP_TIME_SLICE
+    while tsk_t1 < t2:
+        for d in domains:
+            tsk_t2=tsk_t1+EP_TASK_TIME_SLICE
+            r=scheduler.queue_task(task_evt_poll,
+                    pargs =[d, tsk_t1, tsk_t2],
+                    #period = EP_TASK_PERIOD,
+                    #repeats = EP_TASK_REPEATS,
+                    retry_failed = -1,
+                    timeout = EP_TASK_TIMEOUT,
+                    group_name=WGRP_POLLERS)
+            db.commit()
+            tsk_t1 = tsk_t2
 #--------------utilerias---------
 def get_container_name(uri):
     return uri.split('/')[0] if '/' in uri else uri

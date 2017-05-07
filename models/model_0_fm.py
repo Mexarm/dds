@@ -28,7 +28,8 @@ def send_test(campaign_id):
             pvars=dict(to=get_campaign(campaign_id).test_address,
                 mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
                 update_doc=False,
-                ignore_delivery_time=True))
+                ignore_delivery_time=True),
+            group_name=WGRP_SENDERS1)
     tasks = campaign.tasks
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks)
@@ -48,7 +49,8 @@ def launch_campaign(campaign_id):
             next_run_time=mg_acceptance_time,
             timeout = myconf.get ('retry.mailgun_timeout'),
             period = myconf.get('retry.period'),
-            retry_failed =myconf.get ('retry.retry_failed'))
+            retry_failed =myconf.get ('retry.retry_failed'),
+            group_name=WGRP_SENDERS)
         d.update_record()
         db.commit() #commit each task queued and updates docs
 

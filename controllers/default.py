@@ -23,7 +23,8 @@ def __schedule_daemon_task(task_tuple):
                 period = task_period,
                 timeout = task_period - 1,
                 repeats = 0, # 0 = unlimited
-                retry_failed = -1 # -1  = unlimited
+                retry_failed = -1, # -1  = unlimited
+                group_name = WGRP_DAEMONS
                 )
     db.commit()
 

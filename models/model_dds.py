@@ -22,13 +22,20 @@ OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
 #event poll params
 EP_TIME_SLICE = int(myconf.get('eventpoll.time_slice'))
 EP_DAEMON_PERIOD = int(myconf.get('eventpoll.daemon_period'))
-EP_TASK_PERIOD = int(myconf.get('eventpoll.task_period'))
-EP_TASK_REPEAT = int(myconf.get('eventpoll.task_repeat'))
-EP_PAID_ACCOUNT = myconf.get('eventpoll.paid_account')
+EP_DELAY = int(myconf.get('eventpoll.delay'))
+EP_TASK_TIME_SLICE = int(myconf.get('eventpoll.task_time_slice'))
+#EP_TASK_PERIOD = int(myconf.get('eventpoll.task_period'))
+#EP_TASK_REPEATS = int(myconf.get('eventpoll.task_repeats'))
+EP_TASK_TIMEOUT = int(myconf.get('eventpoll.task_timeout'))
+
+WGRP_DAEMONS = 'daemons'
+WGRP_SENDERS = 'senders'
+WGRP_SENDERS1 = 'senders1'
+WGRP_POLLERS = 'pollers'
 
 DAEMON_TASKS = [ ('daemon_progress_tracking',30),
                 ('daemon_status_changer',30),
-                ('daemon_master_event_poll',EP_DAEMON_PERIOD*EP_TIME_SLICE),
+                ('daemon_master_event_poll',EP_DAEMON_PERIOD),
                 ('daemon_reclaim_attach_storage',300)] # (task_name, period in seconds)
 
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -170,10 +177,3 @@ db.define_table('mg_event',
             Field('event_json','json')
             )
 mysql_add_index('mg_event','event_id')
-
-db.define_table('poll_task_info',
-        Field('uuid','string'), #the uuid of the task as returned by the scheduler
-        Field('begin_ts','double',notnull=True),
-        Field('end_ts','double',notnull=True))
-mysql_add_index('poll_task_info','uuid')
-mysql_add_index('poll_task_info','end_ts')
