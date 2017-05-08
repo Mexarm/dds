@@ -125,7 +125,7 @@ def daemon_master_event_poll():
     time_slice = t2 - json.loads(latest_task.args)[2] if latest_task else EP_TIME_SLICE_
     domains = [ r['mg_domain'] for r in  db().select(db.campaign.mg_domain, distinct=True)] #distincts domains in campaigns
     tsk_t1 = t2 - time_slice
-    while tsk_t2 <= t2:
+    while (tsk_t1+EP_TASK_TIME_SLICE) <= t2:
         tsk_t2=tsk_t1+EP_TASK_TIME_SLICE
         for d in domains:
             r=scheduler.queue_task(task_evt_poll,
