@@ -122,7 +122,7 @@ def daemon_master_event_poll():
     latest_task_id=db(db.scheduler_task.task_name== 'task_evt_poll').select(max).first()[max]
     latest_task=scheduler.task_status(latest_task_id) if  latest_task_id else None
     t2 = now_ts - EP_DELAY
-    time_slice = t2 - json.loads(latest_task.args)[2] if latest_task else EP_TIME_SLICE_
+    time_slice = t2 - json.loads(latest_task.args)[2] if latest_task else EP_TIME_SLICE
     domains = [ r['mg_domain'] for r in  db().select(db.campaign.mg_domain, distinct=True)] #distincts domains in campaigns
     tsk_t1 = t2 - time_slice
     while (tsk_t1+EP_TASK_TIME_SLICE) <= t2:
