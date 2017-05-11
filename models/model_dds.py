@@ -102,6 +102,7 @@ db.define_table('campaign',
                 auth.signature)
 
 db.define_table('doc', Field('campaign','reference campaign'),
+                Field('osequence','integer',notnull=True,label='original sequence'), #original sequence
                 Field('record_id','string',notnull=True),                #required on index.csv fieldname = record_id
                 Field('object_name','string',notnull=True), #unique=True?              #required on index.csv fieldname = object_name
                 Field('email_address','string',notnull=True),            #required on index.csv fieldname = email_address
@@ -124,12 +125,13 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('clicked_on','datetime',writable=False),
                 Field('unsubscribed_on','datetime',writable=False),
                 Field('complained_on','datetime',writable=False),
-                Field('stored_on','datetime',writable=False)
-                )
+                Field('stored_on','datetime',writable=False))
 
 mysql_add_index('doc','mailgun_id')
 mysql_add_index('doc','status')
 mysql_add_index('doc','object_name')
+mysql_add_index('doc','osequence')
+
 
 db.define_table('retrieve_code', Field('doc','reference doc'),
                 Field('campaign','reference campaign'),

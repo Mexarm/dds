@@ -25,7 +25,6 @@ from email.utils import formatdate
 URL_KEY = myconf.get('dds.url_key')
 
 # -------------mailgun--------------
-
 def mg_get_domains():
     return requests.get(
         "https://api.mailgun.net/v3/domains",
@@ -63,58 +62,9 @@ def get_events_page(url):
             url,
             auth=('api', myconf.get('mailgun.api_key')))
 
-def daemon_event_poll_short(): #remove
-    event_poll()
-def daemon_event_poll_medium(): #remove
-    event_poll()
-def daemon_event_poll_daily(): #remove
-    event_poll()
-
-def event_poll():#remove
-    for d in db().select(db.campaign.mg_domain, distinct=True): #distincts domains in campaigns
-       daemon_event_poll_for_domain(d['mg_domain'])
-
-def daemon_event_poll_for_domain(domain): #remove
-    ptask=scheduler.task_status(W2P_TASK.uuid)
-    seconds = ptask.period*2
-    end = time.time()
-    begin = end-seconds
-    qopt= dict(begin= begin,end=end)
-    store_mg_events(get_events(domain,qopt))
-
 def task_evt_poll(domain,begin_ts,end_ts): #remove
     qopt= dict(begin= begin_ts,end=end_ts)
     store_mg_events(get_events(domain,qopt))
-
-def daemon_master_event_poll_old(): #remove
-    now_ts = time.time()
-    max = db.poll_task_info.end_ts.max()
-    latest_poll_edge = db().select(max).first()[max] # latest end timestamp
-    past_days = 30 if EP_PAID_ACCOUNT == 'Y' else 2
-    beg_date = (datetime.datetime.utcnow() - datetime.timedelta(days=past_days)).replace(hour=0,minute=0,second=0,microsecond=0)
-    if latest_poll_edge:
-        if (now_ts - latest_poll_edge) < (past_days * 60 * 60 * 24):
-           beg_date = datetime.datetime.fromtimestamp(latest_poll_edge)
-    tbeg = (beg_date -datetime.datetime(1970,1,1)).total_seconds()
-    tend = now_ts + (EP_DAEMON_PERIOD * EP_TIME_SLICE)
-
-    domains = [ r['mg_domain'] for r in  db().select(db.campaign.mg_domain, distinct=True)] #distincts domains in campaigns
-    while tbeg < tend:
-        end_ts= tbeg+ EP_TIME_SLICE
-        tend_dt= datetime.datetime.fromtimestamp(end_ts)
-        for d in domains:
-            r=scheduler.queue_task(task_evt_poll,
-                    pargs =[d,tbeg,end_ts],
-                    start_time = tend_dt,
-                    next_run_time= tend_dt,
-                    period = EP_TASK_PERIOD*EP_TIME_SLICE,
-                    repeats = EP_TASK_REPEAT,
-                    retry_failed = -1)
-            db.poll_task_info.insert(uuid=r.uuid,
-                    begin_ts=tbeg,
-                    end_ts=end_ts)
-            db.commit()
-        tbeg=end_ts
 
 def daemon_master_event_poll():
     now_ts = time.time()
@@ -367,20 +317,17 @@ def save_attachment(doc,campaign,rcode):
     return fullname
 
 def register_on_db(campaign_id,update=True):
-    #Implementar index ddel archivo original para verificar si no se ha subido ya y soportar retries de esta funcion ---------------
     import pyrax.utils as utils
     from gluon.fileutils import abspath
 
     sep=',' # ------ support diferent separators--------------
-
-                                                                      # Download file
+    beg=time.time()
     pth=prepare_subfolder('index_files/')
     campaign = db(db.campaign.id == campaign_id).select().first()
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
     index_file=campaign.index_file
     object_name=path.join(prefix,index_file)
-    #print '!clear!Downloading {}/{}...'.format(container,object_name)
     dld_file=download_object(container,object_name,pth,credentials)
     ok=0
     errors=0
@@ -389,78 +336,64 @@ def register_on_db(campaign_id,update=True):
         hdr=handle.next() # read header (first line) strip \n
         hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
         if not set(REQUIRED_FIELDS) < set(hdr_list):
-            #aqui cambiar estado a error "documents error"
-            raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS),
-                                                                                  container,object_name))
+            raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS)))
         db.doc.campaign.default=campaign_id
         n=0
+        max=db.doc.osequence.max()
+        max_osequence=db().select(max).first()[max] or 0
+        osequence = 0
         for line in handle: # enumeration needed? optimize for millions records
-            values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
-            row=Storage(make_doc_row(dict(zip(hdr_list, values))))   ## USE TRY EXCEPT TO CATCH ERRORS IN RECORDS (FEWER OR MORE FIELDS)!!
-            q=(db.doc.record_id==row.record_id) & (db.doc.campaign==campaign_id)
-            doc=db(q).select(limitby=(0,1)).first()
-
-            if doc:
-                if update:
-                    ret = db(q).validate_and_update(**row)
-                    valid = ret.updated >0
-
-            else:
-                ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
-                valid=ret.id >0
-            #ret.updated ----------------------------------------------------------------------------
-            if not valid:
-                messages += [ 'could not insert or update in table "doc": {}'.format(str(row))  ]
-                errors+=1
-            else:
-                ok+=1
-            #print '!clear!{} registros leidos (ok={},err={})'.format(n+1,ok,errors)
-            n+=1
-            db.commit() #commit each row to avoid lock of the db
-
+            osequence +=1
+            if (osequence > max_osequence) or update:
+                values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
+                rdict = make_doc_row(dict(zip(hdr_list, values)))
+                rdict.update(dict(osequence=osequence))
+                row=Storage(rdict)
+                q=(db.doc.record_id==row.record_id) & (db.doc.campaign==campaign_id)
+                doc=db(q).select(limitby=(0,1)).first()
+                if doc:
+                    if update:
+                        ret = db(q).validate_and_update(**row)
+                        valid = ret.updated >0
+                else:
+                    ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
+                    valid=ret.id >0
+                if not valid:
+                    messages += [ 'could not insert or update in table "doc": {}'.format(str(row))  ]
+                    errors+=1
+                else:
+                    ok+=1
+                n+=1
+                db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
-    #db.commit() #maybe commit each row to avoid lock of the db
-
-    #ret = scheduler.queue_task(validate_files2,pvars=dict(campaign_id=campaign_id),timeout=15 * ok, sync_output=60 ) # timeout = 15secs per record
-
     ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=15 * ok) # timeout = 15secs per record
-
     tasks = db.campaign(campaign_id).tasks
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks, total_campaign_recipients=n)
     db.commit()
-    return dict(ok=ok,errors=errors,messages=messages)
 
 def reset_campaign_progress(campaign_id):
     return db(db.campaign.id == campaign_id).update(status_progress = 0.0, current_task='')
 #----------------
-def create_validate_docs_tasks(campaign_id):   #this function creates a task for validate each document (replaces: validate_files2 -----------------------
-    #create a task to check periodically if all the tasks for this campaign were completed and update de campaign accordingly-------------------------
+def get_ranges(start,end,i):
+    return [ (x,x+i-1) if x+i-1 < end else (x,end) for x in range(start,end,i)]
+
+def create_validate_docs_tasks(campaign_id):
     campaign = db.campaign(campaign_id)
     period = myconf.get('retry.period')
     retry_failed = myconf.get ('retry.retry_failed')
     timeout = myconf.get ('retry.rackspace_timeout')
-
-    query = (db.doc.campaign == int(campaign_id)) & (db.doc.status == DOC_LOCAL_STATE_OK[0])
-    dt=datetime.datetime.now()+datetime.timedelta(minutes=5)
+    i = myconf.get('task.load')
+    max = db.doc.osequence.max()
+    e = campaign.total_campaign_recipients or db(db.doc.campaign == campaign_id).select(max).first()[max]
     n=0
-    for doc in db(query).iterselect():
-        validation_task = scheduler.queue_task(cf_validate_doc,  #----------------------------
-                                                   pvars=dict(doc_id=doc.id),
-                                                   timeout = timeout,
-                                                   period = period,
-                                                   #start_time=dt,
-                                                   #next_run_time= dt,
-                                                   retry_failed = retry_failed
-                                                  )
-        db(db.doc.id==doc.id).update(validation_task=validation_task.id,
-                                     status=DOC_LOCAL_STATE_OK[1])
-
-        event_data(campaign=campaign_id,doc=doc.id,category='info',event_type=inspect.currentframe().f_code.co_name,
-                   event_data = 'scheduled_task {} cf_validate_doc created'.format(validation_task))
+    for r in get_ranges(1,e,i):
+        validation_task = scheduler.queue_task(cf_validate_doc_set,
+                pvars=dict(campaign_id=campaign_id,oseq_beg=r[0],oseq_end=r[1]),
+                timeout = timeout*(r[1]-r[0]), period = period, retry_failed = -1)
         n+=1
         db.commit()
-    return dict(result = '{} tasks created'.format(n))
+    return dict(result = '{} create_validate_tasks created'.format(n))
 
 def parse_datetime(s,dflt_format):
     #s is s string that represents a datetime#format example :01/12/017 09:15:00#%d/%m/%Y %H:%M:%S
@@ -468,13 +401,11 @@ def parse_datetime(s,dflt_format):
     t = s.split('#')
     return datetime.datetime.strptime(t[0],t[1] if len(t)>1 else dflt_format)
 
+def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
+    docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
+              (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])).select()
 
-def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_docs_tasks
-
-    doc = db(db.doc.id==doc_id).select(limitby=(0,1)).first()
-    if doc.status != DOC_LOCAL_STATE_OK[1]: return 'doc.status should be {}'.format(DOC_LOCAL_STATE_OK[1])
-    campaign= db(db.campaign.id == doc.campaign).select(limitby=(0,1)).first()
-    event_data_id=None
+    campaign = get_campaign(campaign_id)
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
     temp_url_key = myconf.get('rackspace.temp_url_key')   # optimize maybe this should be global variables -----------------------------------------------
@@ -491,6 +422,8 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
         event_type=inspect.currentframe().f_code.co_name #get this function name
+
+    for doc in docs:
         try:
             obj=cf.get_object(container,path.join(prefix,doc.object_name))
             if obj.bytes:
@@ -501,21 +434,10 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
                                              doc = doc.id,
                                              temp_url = temp_url,
                                              rcode =rcode )  #insert  retrieve_code
-
                 dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-
                 db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
-
-                    #task= scheduler.queue_task(queue_notification,pvars = dict(doc_id=row.id,retrieve_code_id=rc.id), #separate queue action
-                    #                           start_time=campaign.mg_acceptance_time,
-                    #                           next_run_time=campaign.mg_acceptance_time,
-                    #                           timeout = notification_timeout,
-                    #                           period = period,
-                    #                           retry_failed = retry_failed)
-
                 doc.status=DOC_LOCAL_STATE_OK[2]
                 doc.deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None
-
                 doc.bytes=obj.bytes
                 doc.checksum=obj.etag
                 event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
@@ -532,10 +454,9 @@ def cf_validate_doc(doc_id):  #this function is scheduled by create_validate_doc
             doc.status=DOC_LOCAL_STATE_ERR[0]
             doc.update_record()
             db.commit()
-            return 'error please see event_data id={}'.format(event_data_id)
+            #return 'error please see event_data id={}'.format(event_data_id)
         else:
             db.commit()
-    return event_data_id
 
 def event_data(**kwargs):
     # kwargs doc=<doc_id>, category = ..., event_type=... if campaign is not present it is calculated
@@ -751,14 +672,13 @@ def validating_documents_progress(campaign_id):
     for tid in campaign.tasks:
         task_status= scheduler.task_status(tid,output=True)
         if task_status.scheduler_task.function_name == 'register_on_db':
-            if task_status.scheduler_task.status in ['RUNNING', 'COMPLETED'] :
-                inserted_docs =  db(db.doc.campaign == campaign_id).count()
-                progress1 = (inserted_docs / float(campaign.total_campaign_recipients or (campaign.container_objects-1) )) * 50 #inserting on docs table is the 50% of the validate docs process
+            if task_status.scheduler_task.status == 'COMPLETED':
+                progress1 = 50.0
 
-        if task_status.scheduler_task.function_name == 'create_validate_docs_tasks':
+        if task_status.scheduler_task.function_name == 'create_validate_doc_set':
             if task_status.scheduler_task.status in ['RUNNING', 'COMPLETED'] :
-                validated_docs =  db((db.event_data.campaign == campaign_id) & (db.event_data.event_type == 'cf_validate_doc')).count()
-                progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50 #validate docs is the 50% of the validate docs process
+                validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf_validated')).count()
+                progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50.0 #validate docs is the 50% of the validate docs process
 
     campaign.status_progress = progress1+progress2
     campaign.update_record()
@@ -805,8 +725,6 @@ def validating_documents_change_status(campaign_id):
             if f:
                 f()
     db.commit()
-        #except exceptions.AutomatonException as e:
-        #    return e.message
 
 def queueing_change_status(campaign_id):
     c=get_campaign(campaign_id)

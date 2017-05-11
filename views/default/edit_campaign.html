@@ -86,6 +86,7 @@ tr.traceback {
                 <th>status</th>
                 <th>last run time</th>
                 <th>run output</th>
+                <th>run result</th>
             </tr>
 
         {{for ts in tasks:}}
@@ -94,6 +95,7 @@ tr.traceback {
                 <td>{{=ts.scheduler_task.function_name}}</td>
                 <td>{{=ts.scheduler_task.status}}</td>
                 <td>{{=ts.scheduler_task.last_run_time}}</td>
+                <td>{{=ts.scheduler_run.run_output}}</td>
                 <td>{{=ts.scheduler_run.run_output}}</td>
         </tr>
               {{if ts.scheduler_run.traceback:}}
