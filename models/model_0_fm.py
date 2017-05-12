@@ -35,7 +35,7 @@ def send_test(campaign_id):
     db(db.campaign.id==campaign_id).update(tasks=tasks)
     #db.commit()
 
-def launch_campaign(campaign_id):
+def launch_campaig_old(campaign_id):   #remove
     c = get_campaign(campaign_id)
     if c.mg_acceptance_time  > datetime.datetime.now():
         raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
@@ -53,6 +53,28 @@ def launch_campaign(campaign_id):
             group_name=WGRP_SENDERS)
         d.update_record()
         db.commit() #commit each task queued and updates docs
+
+def launch_campaign(campaign_id):
+    campaign = db.campaign(campaign_id)
+    period = myconf.get('retry.period')
+    retry_failed = myconf.get ('retry.retry_failed')
+    timeout = myconf.get ('retry.mailgun_timeout')
+    i = myconf.get('task.load')
+    if campaign.mg_acceptance_time  > datetime.datetime.now():
+        raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
+    max = db.doc.osequence.max()
+    e = campaign.total_campaign_recipients or db(db.doc.campaign == campaign_id).select(max).first()[max]
+    tasks=[]
+    for r in get_ranges(1,e,i):
+        send_task = scheduler.queue_task(send_doc_set,
+                    pvars=dict(campaign_id=campaign_id,oseq_beg=r[0],oseq_end=r[1]),
+                    timeout = timeout*(r[1]-r[0]), period = period, retry_failed = -1,
+                    group_name=WGRP_SENDERS)
+        tasks.append(send_task.id)
+    campaign.tasks = campaign.tasks + tasks if campaign.tasks else tasks
+    r = campaign.update_record()
+    db.commit()
+    return dict(result = '{} send_doc_set created'.format(len(tasks)))
 
 def schedule_launch_campaign(campaign_id):
     c = get_campaign(campaign_id)

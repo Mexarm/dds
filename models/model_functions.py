@@ -62,7 +62,7 @@ def get_events_page(url):
             url,
             auth=('api', myconf.get('mailgun.api_key')))
 
-def task_evt_poll(domain,begin_ts,end_ts): #remove
+def task_evt_poll(domain,begin_ts,end_ts):
     qopt= dict(begin= begin_ts,end=end_ts)
     store_mg_events(get_events(domain,qopt))
 
@@ -427,7 +427,7 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         try:
             obj=cf.get_object(container,path.join(prefix,doc.object_name))
             if obj.bytes:
-                seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until 
+                seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
                 temp_url = obj.get_temp_url(seconds = seconds)
                 rcode=uuid.uuid4()
                 rc_id = db.retrieve_code.insert(campaign = campaign.id ,
@@ -457,6 +457,25 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
             #return 'error please see event_data id={}'.format(event_data_id)
         else:
             db.commit()
+
+def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
+    docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
+              (db.doc.campaign==campaign_id)&(db.doc.status=='cf validated')).select()
+    if not docs:
+        db(db.scheduler_task.id == W2PTASK.id).update(repeats = 1)
+        return
+    campaign = get_campaign(campaign_id)
+    min_datetime = None
+    for d in docs:
+        mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else campaign.mg_acceptance_time
+        if mg_acceptance_time <= datetime.datetime.now():
+            send_doc_wrapper(d.id)
+        else:
+            if min_datetime > mg_acceptance_time:
+                min_datetime = mg_acceptance_time
+    if min_datetime:
+        db(db.scheduler_task.id == W2PTASK.id).update( next_run_time=min_datetime)
+
 
 def event_data(**kwargs):
     # kwargs doc=<doc_id>, category = ..., event_type=... if campaign is not present it is calculated
@@ -669,16 +688,13 @@ def do_change_status_for(campaign_status):
 def validating_documents_progress(campaign_id):
     campaign=get_campaign(campaign_id)
     progress1,progress2 = (0,0)
-    for tid in campaign.tasks:
-        task_status= scheduler.task_status(tid,output=True)
-        if task_status.scheduler_task.function_name == 'register_on_db':
-            if task_status.scheduler_task.status == 'COMPLETED':
-                progress1 = 50.0
-
-        if task_status.scheduler_task.function_name == 'create_validate_doc_set':
-            if task_status.scheduler_task.status in ['RUNNING', 'COMPLETED'] :
-                validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf_validated')).count()
-                progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50.0 #validate docs is the 50% of the validate docs process
+    tsk = db((db.scheduler_task.id.belongs(campaign.tasks))&(db.scheduler_task.function_name=='register_on_db')&
+            (db.scheduler_task.status=='COMPLETED')).count()
+    if tsk:
+        progress1 = 50.0
+    if campaign.total_campaign_recipients:
+        validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated')).count()
+        progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50.0 #validate docs is the 50% of the validate docs process
 
     campaign.status_progress = progress1+progress2
     campaign.update_record()
