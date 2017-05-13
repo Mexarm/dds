@@ -82,8 +82,13 @@ tr.traceback {
         <table>
             <tr>
                 <th>TaskID</th>
+                <th>group name</th>
+                <th>worker</th>
                 <th>function name</th>
                 <th>status</th>
+                <th>last run time</th>
+                <th>args</th>
+                <th>vars</th>
                 <th>last run time</th>
                 <th>run output</th>
                 <th>run result</th>
@@ -92,16 +97,22 @@ tr.traceback {
         {{for ts in tasks:}}
             <tr>
                 <td>{{=ts.scheduler_task.id}}</td>
+                <td>{{=ts.scheduler_task.group_name}}</td>
+                <td>{{=ts.scheduler_task.assigned_worker_name}}</td>
                 <td>{{=ts.scheduler_task.function_name}}</td>
                 <td>{{=ts.scheduler_task.status}}</td>
                 <td>{{=ts.scheduler_task.last_run_time}}</td>
+                <td>{{=ts.scheduler_task.args}}</td>
+                <td>{{=ts.scheduler_task.vars}}</td>
                 <td>{{=ts.scheduler_run.run_output}}</td>
                 <td>{{=ts.scheduler_run.run_output}}</td>
         </tr>
               {{if ts.scheduler_run.traceback:}}
 			<tr class="traceback">
 				<th>traceback</th>
-					<td>{{=ts.scheduler_run.traceback}}</td>
+            </tr>
+            <tr>
+                <td>{{=ts.scheduler_run.traceback}}</td>
 			</tr>
 				{{pass}}
 

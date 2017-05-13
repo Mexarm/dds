@@ -24,8 +24,6 @@ EP_TIME_SLICE = int(myconf.get('eventpoll.time_slice'))
 EP_DAEMON_PERIOD = int(myconf.get('eventpoll.daemon_period'))
 EP_DELAY = int(myconf.get('eventpoll.delay'))
 EP_TASK_TIME_SLICE = int(myconf.get('eventpoll.task_time_slice'))
-#EP_TASK_PERIOD = int(myconf.get('eventpoll.task_period'))
-#EP_TASK_REPEATS = int(myconf.get('eventpoll.task_repeats'))
 EP_TASK_TIMEOUT = int(myconf.get('eventpoll.task_timeout'))
 
 WGRP_DAEMONS = 'daemons'

@@ -14,8 +14,8 @@ def validate_documents(campaign_id):
     campaign=get_campaign(campaign_id)
     ret = scheduler.queue_task(register_on_db,
             pvars=dict(campaign_id=campaign_id),
-            timeout=60 * campaign.container_objects)
-            #sync_output=60 ) # timeout = 60secs per record
+            timeout=86400, # 1 day
+            sync_output=300)
     tasks = campaign.tasks
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks)
@@ -34,25 +34,6 @@ def send_test(campaign_id):
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks)
     #db.commit()
-
-def launch_campaig_old(campaign_id):   #remove
-    c = get_campaign(campaign_id)
-    if c.mg_acceptance_time  > datetime.datetime.now():
-        raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
-    docs=db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated'))
-    reset_campaign_progress(campaign_id)
-    for d in docs.iterselect():
-        mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else c.mg_acceptance_time
-        d.send_task = scheduler.queue_task(send_doc_wrapper,
-            pargs=[d.id],
-            start_time=mg_acceptance_time,
-            next_run_time=mg_acceptance_time,
-            timeout = myconf.get ('retry.mailgun_timeout'),
-            period = myconf.get('retry.period'),
-            retry_failed =myconf.get ('retry.retry_failed'),
-            group_name=WGRP_SENDERS)
-        d.update_record()
-        db.commit() #commit each task queued and updates docs
 
 def launch_campaign(campaign_id):
     campaign = db.campaign(campaign_id)

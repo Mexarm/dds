@@ -342,7 +342,7 @@ def register_on_db(campaign_id,update=True):
         max=db.doc.osequence.max()
         max_osequence=db().select(max).first()[max] or 0
         osequence = 0
-        for line in handle: # enumeration needed? optimize for millions records
+        for line in handle: 
             osequence +=1
             if (osequence > max_osequence) or update:
                 values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
@@ -364,9 +364,10 @@ def register_on_db(campaign_id,update=True):
                 else:
                     ok+=1
                 n+=1
+                print dict(ok=ok,errors=errors, processes=n)
                 db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
-    ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=15 * ok) # timeout = 15secs per record
+    ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=600) # timeout = 15secs per record
     tasks = db.campaign(campaign_id).tasks
     tasks =  tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id==campaign_id).update(tasks=tasks, total_campaign_recipients=n)
