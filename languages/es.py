@@ -189,6 +189,7 @@
 'enter an integer between %(min)g and %(max)g': 'introduzca un entero entre %(min)g y %(max)g',
 'Enter an integer greater than or equal to %(min)g': 'Enter an integer greater than or equal to %(min)g',
 'enter date and time as %(format)s': 'introduzca fecha y hora como %(format)s',
+'Enter date and time as %(format)s': 'Enter date and time as %(format)s',
 'Enter from %(min)g to %(max)g characters': 'Enter from %(min)g to %(max)g characters',
 'Error logs for "%(app)s"': 'Bitácora de errores en "%(app)s"',
 'errors': 'errores',

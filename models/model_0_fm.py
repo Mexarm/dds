@@ -22,7 +22,7 @@ def validate_documents(campaign_id):
 
 def send_test(campaign_id):
     campaign=get_campaign(campaign_id)
-    doc_id = db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated')).select(limitby=(0,1)).first().id
+    doc_id = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).select(limitby=(0,1)).first().id
     ret = scheduler.queue_task(send_doc_wrapper,
             pargs=[doc_id],
             pvars=dict(to=get_campaign(campaign_id).test_address,

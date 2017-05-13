@@ -197,7 +197,7 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True
         if c:
-            if c.status == 'queuing':
+            if c.status in ['queuing','live','scheduled']:
                 reclaim_attach_storage_campaign(c_uuid)
                 rmtree=False
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
@@ -208,7 +208,7 @@ def reclaim_attach_storage_campaign(c_uuid):
     c_folder = path.join(attach_temp,c_uuid)
     c=get_campaign_by_uuid(c_uuid)
     for f in os.listdir(cfolder):
-        row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='cf validated') ).select(limitby=(0,1)).first()
+        row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='validated') ).select(limitby=(0,1)).first()
         if not row:
             remove(path.join(c_folder,f))
 
@@ -323,7 +323,8 @@ def register_on_db(campaign_id,update=True):
     sep=',' # ------ support diferent separators--------------
     beg=time.time()
     pth=prepare_subfolder('index_files/')
-    campaign = db(db.campaign.id == campaign_id).select().first()
+    campaign = get_campaign(campaign_id)
+    db.doc.status.default= 'validated' if campaign.service_type == 'Body Only' else 'initial'
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
     index_file=campaign.index_file
@@ -342,7 +343,7 @@ def register_on_db(campaign_id,update=True):
         max=db.doc.osequence.max()
         max_osequence=db().select(max).first()[max] or 0
         osequence = 0
-        for line in handle: 
+        for line in handle:
             osequence +=1
             if (osequence > max_osequence) or update:
                 values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
@@ -364,13 +365,16 @@ def register_on_db(campaign_id,update=True):
                 else:
                     ok+=1
                 n+=1
-                print dict(ok=ok,errors=errors, processes=n)
+                if n%100 == 0:
+                    print '!clear!{}'.format(str(dict(ok=ok,errors=errors, processes=n)))
                 db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
-    ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=600) # timeout = 15secs per record
-    tasks = db.campaign(campaign_id).tasks
-    tasks =  tasks + [ret.id] if tasks else [ret.id]
-    db(db.campaign.id==campaign_id).update(tasks=tasks, total_campaign_recipients=n)
+    if db.doc.status.default != 'Body Only':
+        ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=600) # timeout = 15secs per record
+        tasks = db.campaign(campaign_id).tasks
+        tasks =  tasks + [ret.id] if tasks else [ret.id]
+        db(db.campaign.id==campaign_id).update(tasks=tasks)
+    db(db.campaign.id==campaign_id).update(total_campaign_recipients=n)
     db.commit()
 
 def reset_campaign_progress(campaign_id):
@@ -461,7 +465,7 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
-              (db.doc.campaign==campaign_id)&(db.doc.status=='cf validated')).select()
+              (db.doc.campaign==campaign_id)&(db.doc.status=='validated')).select()
     if not docs:
         db(db.scheduler_task.id == W2PTASK.id).update(repeats = 1)
         return
@@ -560,7 +564,7 @@ def process_mg_response(*args,**kwargs):
 
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
-    url_type = { 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
+    url_type = { 'Body Only': None , 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
     data = dict(record_id = doc.record_id,
             object_name = doc.object_name,
             email_address = doc.email_address
@@ -571,20 +575,24 @@ def get_context(doc,campaign,rc):
             uuid = campaign.uuid,
             mg_id = campaign.mg_campaign_id,
             mg_name = campaign.mg_campaign_name,
-            logo = IMG(_src='cid:{}'.format(campaign.logo),_alt='logo'),
             available_from = campaign.available_from,
             available_until = campaign.available_until,
             mg_tags = campaign.mg_tags,
             subject = campaign.email_subject)
+    if campaign.logo:
+        campaign_dict.update(dict(logo = IMG(_src='cid:{}'.format(campaign.logo),_alt=campaign.mg_campaign_name)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
 def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_mode=False):
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.id,doc.campaign)
-    logofile = path.join(abspath(request.folder),'logos/',campaign.logo)
-    if not path.isfile(logofile):
-        save_image(campaign.logo)
+    files=[]
+    if campaign.logo:
+        logofile = path.join(abspath(request.folder),'logos/',campaign.logo)
+        if not path.isfile(logofile):
+            save_image(campaign.logo)
+        files.append([("inline",open(logofile))])
     context=get_context(doc,campaign,rc)
     html_body = render(campaign.html_body,context=context)
     data={'from':'{} <{}>'.format(campaign.from_name,campaign.from_address) if campaign.from_name else campaign.from_address,
@@ -600,7 +608,6 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'
     #v:myvar
-    files=[("inline",open(logofile))]
     if campaign.service_type == 'Attachment':
         files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
@@ -694,7 +701,7 @@ def validating_documents_progress(campaign_id):
     if tsk:
         progress1 = 50.0
     if campaign.total_campaign_recipients:
-        validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'cf validated')).count()
+        validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).count()
         progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50.0 #validate docs is the 50% of the validate docs process
 
     campaign.status_progress = progress1+progress2
