@@ -11,7 +11,7 @@ def __schedule_daemon_task(task_tuple):
     task_period=task_tuple[1]
     tasks = db(db.scheduler_task.function_name == task_name).count()
     if not tasks:
-        session.flash = scheduler.queue_task(task_name,
+        scheduler.queue_task(task_name,
                 pvars={},
                 period = task_period,
                 timeout = task_period - 1,
