@@ -29,7 +29,8 @@ response.google_analytics_id = None
 # ----------------------------------------------------------------------------------------------------------------------
 
 response.menu = [
-    (T('Campaigns'), False, URL('default', 'list_campaign'), [])
+    (T('Campaigns'), False, URL('default', 'list_campaign'), []),
+    (T('Workers'), False, URL('default', 'workers'), [])
 ]
 
 DEVELOPMENT_MENU = False

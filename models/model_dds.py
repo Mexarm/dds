@@ -27,6 +27,7 @@ EP_TASK_TIME_SLICE = int(myconf.get('eventpoll.task_time_slice'))
 EP_TASK_TIMEOUT = int(myconf.get('eventpoll.task_timeout'))
 
 WGRP_DAEMONS = 'daemons'
+WGRP_VALIDATORS = 'validators'
 WGRP_SENDERS = 'senders'
 WGRP_SENDERS1 = 'senders1'
 WGRP_POLLERS = 'pollers'
@@ -157,7 +158,8 @@ db.define_table('event_data',
 db.define_table('mg_event',
             Field('campaign','reference campaign',notnull=True),
             Field('doc','reference doc',notnull=True),
-            Field('event_id','string',length=30,unique=True,notnull=True),
+            Field('event_id','string',default=uuid.uuid4(),length=UUID_LENGTH,unique=True,notnull=True),
+            Field('is_webhook','boolean',default = False,readable=False),
             Field('event_timestamp_dt','datetime',notnull=True), # UTC time
             Field('event_timestamp','double',notnull=True), #unix EPOCH
             Field('event_ip','string',length=15),

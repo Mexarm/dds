@@ -49,6 +49,20 @@ else:
     # from google.appengine.api.memcache import Client
     # session.connect(request, response, db = MEMDB(Client()))
     # ---------------------------------------------------------------------
+log=True
+
+if log:
+    import logging
+    from logging.handlers import SysLogHandler
+
+    logger = logging.getLogger("web2py.app.{}".format(request.app))
+    logger.setLevel(logging.DEBUG)
+    h1 = logging.FileHandler("/var/log/web2py/dds.log")
+    #h1 = SysLogHandler(address='/dev/log') #logs to  /var/log/syslog
+    h1.setLevel(logging.DEBUG)
+    f = logging.Formatter("%(levelname)s %(asctime)s %(funcName)s %(lineno)d %(message)s")
+    h1.setFormatter(f)
+    logger.addHandler(h1)
 
 # -------------------------------------------------------------------------
 # by default give a view/generic.extension to all actions from localhost
@@ -85,7 +99,7 @@ response.form_label_separator = myconf.get('forms.separator') or ''
 from gluon.tools import Auth, Service, PluginManager
 
 # host names must be a list of allowed host names (glob syntax allowed)
-auth = Auth(db, host_names=myconf.get('host.names'))
+auth = Auth(db, host_names=myconf.get('host.names')) #,secure = False)
 service = Service()
 plugins = PluginManager()
 
@@ -107,7 +121,7 @@ mail.settings.ssl = myconf.get('smtp.ssl') or False
 # -------------------------------------------------------------------------
 # configure auth policy
 # -------------------------------------------------------------------------
-auth.settings.registration_requires_verification = False
+auth.settings.registration_requires_verification = True 
 auth.settings.registration_requires_approval = True
 auth.settings.reset_password_requires_verification = True
 

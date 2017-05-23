@@ -1,0 +1,27 @@
+{{extend 'layout.html'}}
+<h3>
+    Workers
+</h3>
+<div class="container">
+    <table class="table table-striped">
+ <thead>
+  <tr>
+    <th></th>
+    <th>host</th>
+    <th>group name</th>
+    <th>count</th>
+  </tr>
+        </thead>
+        <tbody>
+{{for i,(host,grp,c) in enumerate(workers): }}
+<tr>
+    <td>{{=i+1}}</td>
+    <td>{{=host}}</td>
+    <td>{{=grp}}</td>
+    <td>{{=c}}</td>
+  </tr>
+    {{pass}}
+        </tbody>
+</table>
+        Total {{=count}}
+</div>

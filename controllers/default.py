@@ -22,7 +22,7 @@ def index():
     #response.flash = T("Hello World")
     if auth.user :
         redirect(URL('list_campaign'))
-    return dict(message=T('Welcome to DDS!@{}'.format(myconf.get('host.server'))))
+    return dict(message=T('Welcome to CDS!@{}'.format(myconf.get('host.server'))))
 
 @auth.requires_login()
 def process_event():
@@ -47,6 +47,23 @@ def process_event():
 def get_html_body():
     campaign=get_campaign(request.args[0])
     return campaign.html_body
+
+@auth.requires_login()
+def workers():
+    workers = db.executesql("select substring_index(worker_name,'#',1) node,group_names,count(id) from scheduler_worker group by node,group_names order by node,group_names")
+    count = db(db.scheduler_worker.id>0).count()
+    return dict(workers=workers,count=count)
+
+def webhook():
+    #request.requires_https()
+    api_key = myconf.get('mailgun.api_key')
+    v = request.vars
+    if log:
+        logger.debug("webhook {}".format(request._vars))
+    if verify_webhook(api_key,v.token,v.timestamp,v.signature):
+        logger.debug("verified {}".format(request._vars['message-id']))
+        store_mg_event(adjust_webhook_vars(v))
+    return dict(vars=request._vars)
 
 @auth.requires_login()
 def edit_campaign():

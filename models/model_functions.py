@@ -9,7 +9,7 @@ import inspect
 #import traceback
 import urllib2
 from urlparse import urlparse,parse_qs
-import hashlib
+import hashlib, hmac
 
 import pyrax
 import pyrax.exceptions as exc
@@ -87,6 +87,14 @@ def daemon_master_event_poll():
                     group_name=WGRP_POLLERS)
             db.commit()
         tsk_t1 = tsk_t2
+
+def verify_webhook(api_key, token, timestamp, signature):
+    hmac_digest = hmac.new(key=api_key,
+                            msg='{}{}'.format(timestamp, token),
+                            digestmod=hashlib.sha256).hexdigest()
+    #return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
+    return hmac.compare_digest(signature, hmac_digest)
+
 #--------------utilerias---------
 def get_container_name(uri):
     return uri.split('/')[0] if '/' in uri else uri
@@ -128,16 +136,47 @@ def get_latest_dt(dt1,dt2):
     if dt1>dt2: return dt1
     return dt2
 
+def adjust_webhook_vars(req_vars):
+    #req_vars is of type Storage
+    v=req_vars
+    e = dict()
+    if v.country:
+        e['geolocation'] = dict(country=v.country,region = v.region, city = v.city)
+    if v.ip:
+        e['ip'] = v.ip
+    e['log-level'] = v.log_level
+    if v.url:
+        e['url'] = v.url
+    if 'campaign-name' in v:
+        e['campaigns'] = [ dict(name= v['campaign-name'], id = v['campaign-id'])]
+    if 'client-name' in v:
+        e['client-info'] = dict()
+        e['client-info']['client-type']=v['client-type']
+        e['client-info']['client-os']=v['client-os']
+        e['client-info']['device-type']=v['device-type']
+        e['client-info']['client-name']=v['client-name']
+        e['client-info']['user-agent']=v['user-agent']
+    e['event']=v.event
+    e['timestamp']=float(v.timestamp)
+    e['recipient']=v.recipient
+    e['message'] = dict(headers = dict())
+    e['message']['headers']['message-id']=v['message-id']
+    return e
+
+
 def store_mg_event(event_dict): #store an event returned by mailgun example: event_dict = response.json()['items'][0]
-    r=db(db.mg_event.event_id == event_dict['id']).select()
-    if r: return
+    if 'id' in event_dict:
+        r=db(db.mg_event.event_id == event_dict['id']).select()
+        if r: return
     e=Storage(event_dict)
     doc=db(db.doc.mailgun_id ==e['message']['headers']['message-id']).select(limitby=(0,1)).first()
     if not doc: return
     mg_event=dict()
+    if e.id:
+        mg_event['event_id']=e.id
+    mg_event['is_webhook']=False if e.id else True
     mg_event['doc']=doc.id
     mg_event['campaign']=doc.campaign
-    mg_event['event_id']=e.id
     struct_time=time.gmtime(e.timestamp)
     dt=datetime.datetime.fromtimestamp(time.mktime(struct_time))
     mg_event['event_timestamp_dt']=dt
@@ -395,7 +434,8 @@ def create_validate_docs_tasks(campaign_id):
     for r in get_ranges(1,e,i):
         validation_task = scheduler.queue_task(cf_validate_doc_set,
                 pvars=dict(campaign_id=campaign_id,oseq_beg=r[0],oseq_end=r[1]),
-                timeout = timeout*(r[1]-r[0]), period = period, retry_failed = -1)
+                timeout = timeout*(r[1]-r[0]), period = period, retry_failed = -1,
+                group_name = WGRP_VALIDATORS)
         n+=1
         db.commit()
     return dict(result = '{} create_validate_tasks created'.format(n))
@@ -580,7 +620,7 @@ def get_context(doc,campaign,rc):
             mg_tags = campaign.mg_tags,
             subject = campaign.email_subject)
     if campaign.logo:
-        campaign_dict.update(dict(logo = IMG(_src='cid:{}'.format(campaign.logo),_alt=campaign.mg_campaign_name)))
+        campaign_dict.update(dict(logo_src = 'cid:{}'.format(campaign.logo)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
 def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_mode=False):
@@ -592,7 +632,7 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
         logofile = path.join(abspath(request.folder),'logos/',campaign.logo)
         if not path.isfile(logofile):
             save_image(campaign.logo)
-        files.append([("inline",open(logofile))])
+        files.append(("inline",open(logofile)))
     context=get_context(doc,campaign,rc)
     html_body = render(campaign.html_body,context=context)
     data={'from':'{} <{}>'.format(campaign.from_name,campaign.from_address) if campaign.from_name else campaign.from_address,
