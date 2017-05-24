@@ -7,7 +7,7 @@
 
 response.logo = A(B(myconf.get('app.brand')), XML('&reg;&nbsp;'),
                   _class="navbar-brand", _href=URL('index'),
-                  _id="qp-logo")
+                  _id="logo")
 response.title = request.application.replace('_', ' ').title()
 response.subtitle = ''
 

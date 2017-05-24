@@ -160,6 +160,7 @@ db.define_table('mg_event',
             Field('doc','reference doc',notnull=True),
             Field('event_id','string',default=uuid.uuid4(),length=UUID_LENGTH,unique=True,notnull=True),
             Field('is_webhook','boolean',default = False,readable=False),
+            Field('webhook_token','string',readable=False),
             Field('event_timestamp_dt','datetime',notnull=True), # UTC time
             Field('event_timestamp','double',notnull=True), #unix EPOCH
             Field('event_ip','string',length=15),
@@ -179,3 +180,4 @@ db.define_table('mg_event',
             Field('event_json','json')
             )
 mysql_add_index('mg_event','event_id')
+mysql_add_index('mg_event','webhook_token')

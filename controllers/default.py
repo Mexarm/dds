@@ -56,14 +56,17 @@ def workers():
 
 def webhook():
     #request.requires_https()
-    api_key = myconf.get('mailgun.api_key')
     v = request.vars
-    if log:
-        logger.debug("webhook {}".format(request._vars))
+    t = cache.ram(v.token,lambda:exist_webhook_token(v.token),time_expire=15)
+    if t: raise HTTP(400)
+    api_key = myconf.get('mailgun.api_key')
     if verify_webhook(api_key,v.token,v.timestamp,v.signature):
-        logger.debug("verified {}".format(request._vars['message-id']))
-        store_mg_event(adjust_webhook_vars(v))
-    return dict(vars=request._vars)
+        #logger.debug("verified {}".format(request._vars['message-id']))
+        if 'message-id' in v:
+            eid =  store_mg_event(adjust_webhook_vars(v))
+            if eid: return dict(message = 'Stored', id = eid)
+        return dict(message = 'Test OK')
+    raise HTTP(400)
 
 @auth.requires_login()
 def edit_campaign():
@@ -125,12 +128,13 @@ def list_campaign():
 @auth.requires_login()
 def list_docs():
     campaign_id=int(request.args[0])
+    db.mg_event.is_webhook.readable=True
     constraints={'doc':db.doc.campaign==campaign_id}
     fields=[db.doc.record_id,db.doc.object_name,db.doc.email_address,
             db.doc.deliverytime,
             db.doc.status,db.doc.accepted_on,db.doc.delivered_on,
             db.doc.failed_on,db.doc.opened_on,db.doc.clicked_on,
-            db.mg_event.event_timestamp_dt,db.mg_event.event_,db.mg_event.event_ip,
+            db.mg_event.event_timestamp_dt,db.mg_event.event_,db.mg_event.is_webhook,db.mg_event.event_ip,
             db.mg_event.event_log_level,db.mg_event.event_recipient,db.mg_event.event_tags,
             db.mg_event.event_geolocation_country]
     smartgrid=SQLFORM.smartgrid(db.doc,

@@ -92,8 +92,8 @@ def verify_webhook(api_key, token, timestamp, signature):
     hmac_digest = hmac.new(key=api_key,
                             msg='{}{}'.format(timestamp, token),
                             digestmod=hashlib.sha256).hexdigest()
-    #return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
-    return hmac.compare_digest(signature, hmac_digest)
+    return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
+#return hmac.compare_digest(signature, hmac_digest)
 
 #--------------utilerias---------
 def get_container_name(uri):
@@ -144,7 +144,7 @@ def adjust_webhook_vars(req_vars):
         e['geolocation'] = dict(country=v.country,region = v.region, city = v.city)
     if v.ip:
         e['ip'] = v.ip
-    e['log-level'] = v.log_level
+    e['log-level'] =''
     if v.url:
         e['url'] = v.url
     if 'campaign-name' in v:
@@ -156,25 +156,37 @@ def adjust_webhook_vars(req_vars):
         e['client-info']['device-type']=v['device-type']
         e['client-info']['client-name']=v['client-name']
         e['client-info']['user-agent']=v['user-agent']
+    e['tags']=  v.tag or v['X-Mailgun-Tag']
+    if 'domain' in v:
+        e['domain'] = v.domain
     e['event']=v.event
     e['timestamp']=float(v.timestamp)
     e['recipient']=v.recipient
     e['message'] = dict(headers = dict())
     e['message']['headers']['message-id']=v['message-id']
+    if 'message-headers' in v:
+        e['message-headers']=v['message-headers']
+    if 'token' in v:
+        e['token']=v.token
     return e
 
+def exist_webhook_token(token):
+    return db(db.mg_event.webhook_token == token).count()
 
 def store_mg_event(event_dict): #store an event returned by mailgun example: event_dict = response.json()['items'][0]
     if 'id' in event_dict:
         r=db(db.mg_event.event_id == event_dict['id']).select()
         if r: return
     e=Storage(event_dict)
+    if not e['message']['headers']['message-id']: return
     doc=db(db.doc.mailgun_id ==e['message']['headers']['message-id']).select(limitby=(0,1)).first()
+#http://bin.mailgun.net/62ea548b
     if not doc: return
     mg_event=dict()
     if e.id:
         mg_event['event_id']=e.id
     mg_event['is_webhook']=False if e.id else True
+    mg_event['webhook_token']=e.token if 'token' in e else None
     mg_event['doc']=doc.id
     mg_event['campaign']=doc.campaign
     struct_time=time.gmtime(e.timestamp)
@@ -404,9 +416,9 @@ def register_on_db(campaign_id,update=True):
                 else:
                     ok+=1
                 n+=1
-                if n%100 == 0:
+                if n%1000 == 0:
                     print '!clear!{}'.format(str(dict(ok=ok,errors=errors, processes=n)))
-                db.commit() #commit each row to avoid lock of the db
+                    db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
     if db.doc.status.default != 'Body Only':
         ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=600) # timeout = 15secs per record

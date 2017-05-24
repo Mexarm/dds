@@ -273,6 +273,7 @@
 'Invalid reset password': 'Reinicio de contraseña inválido',
 'invalid ticket': 'tiquete inválido',
 'Is Active': 'Está Activo',
+'Is Webhook': 'Is Webhook',
 'JSON': 'JSON',
 'JSON export of visible columns': 'JSON export of visible columns',
 'Key': 'Llave',
