@@ -411,7 +411,7 @@ def register_on_db(campaign_id,update=True):
             ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
             valid=ret.id >0
             if not valid:
-                messages.append('error record#: {}'.format(str(osequence)
+                messages.append('error record#: {}'.format(str(osequence)))
                 errors+=1
             else:
                 ok+=1
