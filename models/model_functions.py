@@ -367,7 +367,7 @@ def save_attachment(doc,campaign,rcode):
     verify_checksum(doc.checksum,fullname)
     return fullname
 
-def register_on_db(campaign_id,update=True):
+def register_on_db(campaign_id):
     import pyrax.utils as utils
     from gluon.fileutils import abspath
 
@@ -384,6 +384,8 @@ def register_on_db(campaign_id,update=True):
     ok=0
     errors=0
     messages = list()
+    db(db.doc.campaign==campaign_id).delete()
+    db.commit()
     with open(dld_file,'r') as handle:                                                            # check UNICODE SUPPORT!!!
         hdr=handle.next() # read header (first line) strip \n
         hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
@@ -391,23 +393,13 @@ def register_on_db(campaign_id,update=True):
             raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS)))
         db.doc.campaign.default=campaign_id
         n=0
-        #max=db.doc.osequence.max()
-        #max_osequence=db().select(max).first()[max] or 0
         osequence = 0
         for line in handle:
             osequence +=1
-            #if (osequence > max_osequence) or update:
             values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
             rdict = make_doc_row(dict(zip(hdr_list, values)))
             rdict.update(dict(osequence=osequence))
             row=Storage(rdict)
-            #q=(db.doc.record_id==row.record_id) & (db.doc.campaign==campaign_id)
-            #doc=db(q).select(limitby=(0,1)).first()
-            #    if doc:
-            #        if update:
-            #            ret = db(q).validate_and_update(**row)
-            #            valid = ret.updated >0
-            #    else:
             ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
             valid=ret.id >0
             if not valid:
@@ -420,8 +412,8 @@ def register_on_db(campaign_id,update=True):
                 print '!clear!{}'.format(str(dict(ok=ok,errors=errors, processes=n)))
                 db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
-    if db.doc.status.default != 'Body Only':
-        ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=600) # timeout = 15secs per record
+    if db.doc.status.default != 'validated':
+        ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=1200) # timeout = 15secs per record
         tasks = db.campaign(campaign_id).tasks
         tasks =  tasks + [ret.id] if tasks else [ret.id]
         db(db.campaign.id==campaign_id).update(tasks=tasks)
