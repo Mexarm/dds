@@ -385,6 +385,7 @@ def register_on_db(campaign_id):
     errors=0
     messages = list()
     db(db.doc.campaign==campaign_id).delete()
+    db(db.rcode.campaign==campaign_id).delete()
     db.commit()
     with open(dld_file,'r') as handle:                                                            # check UNICODE SUPPORT!!!
         hdr=handle.next() # read header (first line) strip \n
@@ -470,7 +471,7 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         curr_key = cf.get_temp_url_key()
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
-        event_type=inspect.currentframe().f_code.co_name #get this function name
+        #event_type=inspect.currentframe().f_code.co_name #get this function name
 
     for doc in docs:
         try:
@@ -479,20 +480,21 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
                 seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
                 temp_url = obj.get_temp_url(seconds = seconds)
                 rcode=uuid.uuid4()
+                dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
                 rc_id = db.retrieve_code.insert(campaign = campaign.id ,
                                              doc = doc.id,
                                              temp_url = temp_url,
                                              rcode =rcode )  #insert  retrieve_code
-                dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-                db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
+                # dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
+                #db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
                 doc.status=DOC_LOCAL_STATE_OK[2]
                 doc.deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None
                 doc.bytes=obj.bytes
                 doc.checksum=obj.etag
-                event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
-                        event_type=event_type,
-                        event_data='{}/{} OK'.format(container,  path.join(prefix,doc.object_name)),
-                        created_by_task =W2P_TASK.uuid) #event_data
+                #event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
+                #        event_type=event_type,
+                #        event_data='{}/{} OK'.format(container,  path.join(prefix,doc.object_name)),
+                #        created_by_task =W2P_TASK.uuid) #event_data
             else:
                 doc.status=DOC_LOCAL_STATE_ERR[0]
                 event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='error',
