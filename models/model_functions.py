@@ -472,7 +472,7 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
         #event_type=inspect.currentframe().f_code.co_name #get this function name
-
+    n=0
     for doc in docs:
         try:
             obj=cf.get_object(container,path.join(prefix,doc.object_name))
@@ -507,7 +507,11 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
             db.commit()
             #return 'error please see event_data id={}'.format(event_data_id)
         else:
-            db.commit()
+            n+=1
+            if n%1000==0:
+                db.commit()
+                print "!clear!{} records validated".format(n)
+    db.commit()
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
