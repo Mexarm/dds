@@ -385,7 +385,7 @@ def register_on_db(campaign_id):
     errors=0
     messages = list()
     db(db.doc.campaign==campaign_id).delete()
-    db(db.rcode.campaign==campaign_id).delete()
+    db(db.retrieve_code.campaign==campaign_id).delete()
     db.commit()
     with open(dld_file,'r') as handle:                                                            # check UNICODE SUPPORT!!!
         hdr=handle.next() # read header (first line) strip \n
