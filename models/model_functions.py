@@ -452,8 +452,7 @@ def parse_datetime(s,dflt_format):
     return datetime.datetime.strptime(t[0],t[1] if len(t)>1 else dflt_format)
 
 def mysql_check_query_maxlength(query):
-    max_allowed_packet = db.executesql("SHOW VARIABLES like 'max_allowed_packet';")[0][1]
-    if len(query) > max_allowed_packet:
+    if len(query) > MAX_ALLOWED_PACKET:
         raise ValueError('query length {} is greater than {}'.format(len(query),max_allowed_packet))
     return True
 

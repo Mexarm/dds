@@ -39,6 +39,8 @@ DAEMON_TASKS = [ ('daemon_progress_tracking',30),
 
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+MAX_ALLOWED_PACKET = db.executesql("SHOW VARIABLES like 'max_allowed_packet';")[0][1]
+
 def compute_acceptance_time(dt):
     import datetime
     from dateutil.relativedelta import relativedelta
