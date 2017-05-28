@@ -470,11 +470,13 @@ def update_records(db_table,values):
         qstr+=db(db_table.id == v_id)._update(**v)
         if ((i+1)%100) == 0:
             mysql_check_query_maxlength(qstr)
-            db.executesql(qstr)
+            r=db.executesql(qstr)
+            db.commit()
             qstr=''
     if qstr:
         mysql_check_query_maxlength(qstr)
-        db.executesql(qstr)
+        r=db.executesql(qstr)
+        db.commit()
 
 def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     t0=time.time()
@@ -523,7 +525,8 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
                                     rcode=rcode))
                 # dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
                 #db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
-                doc_values.append(dict(id = doc.id,
+                doc_values.append(dict(
+                                        # id = doc.id,
                                         status=DOC_LOCAL_STATE_OK[2],
                                         deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None,
                                         bytes=obj.bytes,
@@ -544,10 +547,20 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
             db.commit()
             #return 'error please see event_data id={}'.format(event_data_id)
     t2= time.time()
-    if rcode_values:
-        db.executesql(get_insert_query(db.retrieve_code,rcode_values))
-    if doc_values:
-        update_records(db.doc,doc_values)
+    #if rcode_values:
+    #    r=db.executesql(get_insert_query(db.retrieve_code,rcode_values))
+    #    db.commit()
+    #if doc_values:
+    #    update_records(db.doc,doc_values)
+    n=0
+    error=0
+    for rc in rcode_values:
+        if not db.retrieve_code.insert(**rc): error+=1
+        if not db(db.doc.id == rc['doc']).update(**doc_values[n]): error+=1
+        n+=1
+    if error:
+        db.rollback()
+        raise Exception('db insert/update error')
     db.commit()
     t3= time.time()
     return (dict(connection= t1-t0,loop= t2-t1,records=len(docs),insert=t3-t2))
