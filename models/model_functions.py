@@ -481,7 +481,7 @@ def update_records(db_table,values):
 def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     t0=time.time()
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
-              (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])).select()
+              (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])).select(db.doc.object_name,distinct=True)
 
     campaign = get_campaign(campaign_id)
     credentials=get_credentials_storage()
@@ -518,17 +518,20 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
                 #                             temp_url = temp_url,
                 #                             dds_url=dds_url,
                 #                             rcode =rcode )  #insert  retrieve_code
-                rcode_values.append(dict(campaign=campaign.id,
+                rcode_values.append(dict(
+                                    #campaign=campaign.id,
                                     doc=doc.id,
+                                    object_name = doc.object_name,
                                     temp_url=temp_url,
                                     dds_url=dds_url,
-                                    rcode=rcode))
+                                    rcode=rcode
+                                    ))
                 # dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
                 #db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
                 doc_values.append(dict(
                                         # id = doc.id,
-                                        status=DOC_LOCAL_STATE_OK[2],
-                                        deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None,
+                                        #status=DOC_LOCAL_STATE_OK[2],
+                                        # deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None,
                                         bytes=obj.bytes,
                                         checksum=obj.etag))
                 #event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
@@ -552,12 +555,19 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     #    db.commit()
     #if doc_values:
     #    update_records(db.doc,doc_values)
-    n=0
     error=0
+    n=0
+    db.retrieve_code.campaign.default=campaign.id
+    db.doc.status.default=DOC_LOCAL_STATE_OK[2]
     for rc in rcode_values:
-        if not db.retrieve_code.insert(**rc): error+=1
-        if not db(db.doc.id == rc['doc']).update(**doc_values[n]): error+=1
-        n+=1
+        rc_id = db.retrieve_code.insert(**rc)
+        if rc_id:
+            dv= doc_values[n]
+            dv['rcode']=rc_id
+            db((db.doc.campaign == campaign.id) & (db.doc.object_name==rc['object_name'])).update(**dv)
+        else:
+            error+=1
+#        if not db(db.doc.id == rc['doc']).update(**doc_values[n]): error+=1
     if error:
         db.rollback()
         raise Exception('db insert/update error')
@@ -688,7 +698,7 @@ def get_context(doc,campaign,rc):
 def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_mode=False):
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
-    rc = get_rcode(doc.id,doc.campaign)
+    rc = get_rcode(doc.rcode,doc.campaign)
     files=[]
     if campaign.logo:
         logofile = path.join(abspath(request.folder),'logos/',campaign.logo)
@@ -722,8 +732,8 @@ def mg_send_message(domain,api_key,**kwargs):
         auth=("api", api_key),
         **kwargs)
 
-def get_rcode(doc_id,campaign_id):
-    return db((db.retrieve_code.doc == doc_id) & (db.retrieve_code.campaign == campaign_id)).select(limitby=(0,1),
+def get_rcode(rcode_id,campaign_id):
+    return db((db.retrieve_code.id == rcode_id) & (db.retrieve_code.campaign == campaign_id)).select(limitby=(0,1),
             orderby=~db.retrieve_code.id).first()
 
 def get_campaign(campaign_id):
