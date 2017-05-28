@@ -322,7 +322,7 @@ def download_object(container_name,object_name,savepath,credentials):
     import pyrax.exceptions as exc
     import pyrax.utils as utils
 
-    chunk_size = 256 * 1024 #256kB
+    chunk_size = 512 * 1024 #256kB
 
     pyrax.set_setting("identity_type", "rackspace")
     pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
@@ -501,10 +501,12 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         #event_type=inspect.currentframe().f_code.co_name #get this function name
     doc_values = list()
     rcode_values = list()
+    cont = cf.get_container(container)
     t1= time.time()
     for doc in docs:
         try:
-            obj=cf.get_object(container,path.join(prefix,doc.object_name))
+            # obj=cf.get_object(container,path.join(prefix,doc.object_name))
+            obj=cont.get_object(path.join(prefix,doc.object_name))
             if obj.bytes:
                 seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
                 temp_url = obj.get_temp_url(seconds = seconds)
