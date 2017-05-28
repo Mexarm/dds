@@ -451,6 +451,14 @@ def parse_datetime(s,dflt_format):
     t = s.split('#')
     return datetime.datetime.strptime(t[0],t[1] if len(t)>1 else dflt_format)
 
+def get_query(db_table,values):
+    vlist=[ db_table._insert(**v).split('VALUES ')[1].replace(';','') for v in values]
+    max_allowed_packet = db.executesql("SHOW VARIABLES like 'max_allowed_packet';")[0][1]
+    query = db_table._insert(**values[0]).split('VALUES ')[0] + 'VALUES ' + vlist.join(',') + ';'
+    if len(query) > max_allowed_packet:
+        raise ValueError('query length is greater that {}'.format(max_allowed_packet))
+    return query
+
 def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
               (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])).select()
@@ -472,7 +480,9 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
         #event_type=inspect.currentframe().f_code.co_name #get this function name
-    n=0
+    doc_values = list()
+    rcode_values = list()
+    t1= time.time()
     for doc in docs:
         try:
             obj=cf.get_object(container,path.join(prefix,doc.object_name))
@@ -481,16 +491,22 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
                 temp_url = obj.get_temp_url(seconds = seconds)
                 rcode=uuid.uuid4()
                 dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-                rc_id = db.retrieve_code.insert(campaign = campaign.id ,
-                                             doc = doc.id,
-                                             temp_url = temp_url,
-                                             rcode =rcode )  #insert  retrieve_code
+                #rc_id = db.retrieve_code.insert(campaign = campaign.id ,
+                #                             doc = doc.id,
+                #                             temp_url = temp_url,
+                #                             dds_url=dds_url,
+                #                             rcode =rcode )  #insert  retrieve_code
+                rcode_values.append(dict(campaign=campaign.id,
+                                    doc=doc.id,
+                                    temp_url=temp_url,
+                                    dds_url=dds_url,
+                                    rcode=rcode))
                 # dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
                 #db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
-                doc.status=DOC_LOCAL_STATE_OK[2]
-                doc.deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None
-                doc.bytes=obj.bytes
-                doc.checksum=obj.etag
+                doc_values.append(dict(status=DOC_LOCAL_STATE_OK[2],
+                                        deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None,
+                                        bytes=obj.bytes,
+                                        checksum=obj.etag))
                 #event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
                 #        event_type=event_type,
                 #        event_data='{}/{} OK'.format(container,  path.join(prefix,doc.object_name)),
@@ -506,12 +522,12 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
             doc.update_record()
             db.commit()
             #return 'error please see event_data id={}'.format(event_data_id)
-        else:
-            n+=1
-            if n%1000==0:
-                db.commit()
-                print "!clear!{} records validated".format(n)
+    t2= time.time()
+    db.execute_sql(get_query(rcode_values))
+    db.execute_sql(get_query(doc_values))
     db.commit()
+    t3= time.time()
+    return (dict(loop= t2-t1,insert=t3-t2))
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
