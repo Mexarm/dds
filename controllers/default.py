@@ -79,7 +79,7 @@ def edit_campaign():
     tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
     doc = db((db.doc.campaign == campaign.id) & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
     #return str(doc)+str(campaign)
-    context = get_context(doc,campaign,get_rcode(doc.id,doc.campaign)) if doc else None
+    context = get_context(doc,campaign,get_rcode(doc.rcode,doc.campaign)) if doc else None
     form.id=campaign.id #pass the id of the campaign in the form to the onvalidation function
     onvalidation= validate_dates if form.vars.available_from else lambda x: None
     if form.process(onvalidation=onvalidation).accepted:

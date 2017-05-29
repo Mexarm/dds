@@ -480,22 +480,18 @@ def update_records(db_table,values):
 
 def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     t0=time.time()
-    docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
-              (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])).select(db.doc.object_name,distinct=True)
-
+    q = (db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&(db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
+    docs = db(q).select(db.doc.object_name,distinct=True)
     campaign = get_campaign(campaign_id)
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
     temp_url_key = myconf.get('rackspace.temp_url_key')   # optimize maybe this should be global variables -----------------------------------------------
     server = myconf.get('host.server')
-
     pyrax.set_setting("identity_type", "rackspace")
     pyrax.set_default_region(credentials.region)
     pyrax.set_credentials(credentials.username, credentials.api_key)
-
     if pyrax.identity.authenticated:
         cf=pyrax.cloudfiles
-
         curr_key = cf.get_temp_url_key()
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
@@ -520,7 +516,7 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
                 #                             rcode =rcode )  #insert  retrieve_code
                 rcode_values.append(dict(
                                     #campaign=campaign.id,
-                                    doc=doc.id,
+                                    #doc=doc.id,
                                     object_name = doc.object_name,
                                     temp_url=temp_url,
                                     dds_url=dds_url,
@@ -555,25 +551,17 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
     #    db.commit()
     #if doc_values:
     #    update_records(db.doc,doc_values)
-    error=0
-    n=0
     db.retrieve_code.campaign.default=campaign.id
-    db.doc.status.default=DOC_LOCAL_STATE_OK[2]
-    for rc in rcode_values:
+    updated=0
+    for n,rc in enumerate(rcode_values):
         rc_id = db.retrieve_code.insert(**rc)
-        if rc_id:
-            dv= doc_values[n]
-            dv['rcode']=rc_id
-            db((db.doc.campaign == campaign.id) & (db.doc.object_name==rc['object_name'])).update(**dv)
-        else:
-            error+=1
-#        if not db(db.doc.id == rc['doc']).update(**doc_values[n]): error+=1
-    if error:
-        db.rollback()
-        raise Exception('db insert/update error')
+        dv= doc_values[n]
+        dv['rcode']=rc_id
+        dv['status']=DOC_LOCAL_STATE_OK[2]
+        updated+=db((q) & (db.doc.object_name==rc['object_name'])).update(**dv)
     db.commit()
     t3= time.time()
-    return (dict(connection= t1-t0,loop= t2-t1,records=len(docs),insert=t3-t2))
+    return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(docs),insert=t3-t2))
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
