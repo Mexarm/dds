@@ -414,7 +414,7 @@ def register_on_db(campaign_id):
                 db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
     if db.doc.status.default != 'validated':
-        ret = scheduler.queue_task(create_validate_docs_tasks,pvars=dict(campaign_id=campaign_id),timeout=1200) # timeout = 15secs per record
+        ret = scheduler.queue_task(create_validate_docs_tasks2,pvars=dict(campaign_id=campaign_id),timeout=1200) # timeout = 15secs per record
         tasks = db.campaign(campaign_id).tasks
         tasks =  tasks + [ret.id] if tasks else [ret.id]
         db(db.campaign.id==campaign_id).update(tasks=tasks)
@@ -425,21 +425,23 @@ def reset_campaign_progress(campaign_id):
     return db(db.campaign.id == campaign_id).update(status_progress = 0.0, current_task='')
 #----------------
 def get_ranges(start,end,i):
+    if start==end: return [(start,end)]
     return [ (x,x+i-1) if x+i-1 < end else (x,end) for x in range(start,end,i)]
 
-def create_validate_docs_tasks(campaign_id):
+def create_validate_docs_tasks2(campaign_id):
     campaign = db.campaign(campaign_id)
     period = myconf.get('retry.period')
     retry_failed = myconf.get ('retry.retry_failed')
     timeout = myconf.get ('retry.rackspace_timeout')
     i = myconf.get('task.load')
-    max = db.doc.osequence.max()
-    e = campaign.total_campaign_recipients or db(db.doc.campaign == campaign_id).select(max).first()[max]
+    q = (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
+    objs = db(q).select(db.doc.object_name,orderby=db.doc.osequence,groupby=db.doc.object_name)
     n=0
-    for r in get_ranges(1,e,i):
-        validation_task = scheduler.queue_task(cf_validate_doc_set,
-                pvars=dict(campaign_id=campaign_id,oseq_beg=r[0],oseq_end=r[1]),
-                timeout = timeout*(r[1]-r[0]), period = period, retry_failed = -1,
+    for beg in range(0,len(objs)+1,i):
+        obj_list = [ obj.object_name for obj in objs[beg:beg+i]]
+        validation_task = scheduler.queue_task(cf_validate_doc_set2,
+                pvars=dict(campaign_id=campaign_id,objs=obj_list),
+                timeout = timeout*i, period = period, retry_failed = -1,
                 group_name = WGRP_VALIDATORS)
         n+=1
         db.commit()
@@ -451,37 +453,8 @@ def parse_datetime(s,dflt_format):
     t = s.split('#')
     return datetime.datetime.strptime(t[0],t[1] if len(t)>1 else dflt_format)
 
-def mysql_check_query_maxlength(query):
-    if len(query) > MAX_ALLOWED_PACKET:
-        raise ValueError('query length {} is greater than {}'.format(len(query),max_allowed_packet))
-    return True
-
-def get_insert_query(db_table,values):
-    vlist=[ db_table._insert(**v).split('VALUES ')[1].replace(';','') for v in values]
-    query = db_table._insert(**values[0]).split('VALUES ')[0] + 'VALUES ' + ','.join(vlist) + ';'
-    mysql_check_query_maxlength(query)
-    return query
-
-def update_records(db_table,values):
-    qstr = ''
-    for i,v in enumerate(values):
-        v_id = v['id']
-        v.pop('id',None)
-        qstr+=db(db_table.id == v_id)._update(**v)
-        if ((i+1)%100) == 0:
-            mysql_check_query_maxlength(qstr)
-            r=db.executesql(qstr)
-            db.commit()
-            qstr=''
-    if qstr:
-        mysql_check_query_maxlength(qstr)
-        r=db.executesql(qstr)
-        db.commit()
-
-def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
+def cf_validate_doc_set2(campaign_id,objs):
     t0=time.time()
-    q = (db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&(db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
-    docs = db(q).select(db.doc.object_name,distinct=True)
     campaign = get_campaign(campaign_id)
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
@@ -495,73 +468,40 @@ def cf_validate_doc_set(campaign_id,oseq_beg,oseq_end):
         curr_key = cf.get_temp_url_key()
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
-        #event_type=inspect.currentframe().f_code.co_name #get this function name
     doc_values = list()
     rcode_values = list()
     cont = cf.get_container(container)
     t1= time.time()
-    for doc in docs:
-        try:
-            # obj=cf.get_object(container,path.join(prefix,doc.object_name))
-            obj=cont.get_object(path.join(prefix,doc.object_name))
-            if obj.bytes:
-                seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
-                temp_url = obj.get_temp_url(seconds = seconds)
-                rcode=uuid.uuid4()
-                dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-                #rc_id = db.retrieve_code.insert(campaign = campaign.id ,
-                #                             doc = doc.id,
-                #                             temp_url = temp_url,
-                #                             dds_url=dds_url,
-                #                             rcode =rcode )  #insert  retrieve_code
-                rcode_values.append(dict(
-                                    #campaign=campaign.id,
-                                    #doc=doc.id,
-                                    object_name = doc.object_name,
+    for o in objs:
+        obj=cont.get_object(path.join(prefix,o))
+        if obj.bytes:
+            seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
+            temp_url = obj.get_temp_url(seconds = seconds)
+            rcode=uuid.uuid4()
+            dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
+            rcode_values.append(dict(
+                                    object_name = o,
                                     temp_url=temp_url,
                                     dds_url=dds_url,
                                     rcode=rcode
                                     ))
-                # dds_url = URL('secure',vars=dict( id = rc_id, rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-                #db(db.retrieve_code.id == rc_id).update(dds_url=dds_url)
-                doc_values.append(dict(
-                                        # id = doc.id,
-                                        #status=DOC_LOCAL_STATE_OK[2],
-                                        # deliverytime=parse_datetime(doc.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in doc.json else None,
+            doc_values.append(dict(
                                         bytes=obj.bytes,
                                         checksum=obj.etag))
-                #event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='info',
-                #        event_type=event_type,
-                #        event_data='{}/{} OK'.format(container,  path.join(prefix,doc.object_name)),
-                #        created_by_task =W2P_TASK.uuid) #event_data
-            else:
-                doc.status=DOC_LOCAL_STATE_ERR[0]
-                event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='error',
-                        event_type=event_type, event_data='{}/{} ERROR: 0 BYTES'.format(container.name,  path.join(prefix,doc.object_name)))             #event_data
-                doc.update_record()
-        except (exc.NoSuchContainer,exc.NoSuchObject,ValueError)  as e:
-            event_data_id=event_data(campaign=campaign.id,doc=doc.id,category='error',event_type=event_type, event_data=e.message)             #event_data
-            doc.status=DOC_LOCAL_STATE_ERR[0]
-            doc.update_record()
-            db.commit()
-            #return 'error please see event_data id={}'.format(event_data_id)
+        else:
+            db(q & (db.doc.object_name == o)).update(status=DOC_LOCAL_STATE_ERR[0])
     t2= time.time()
-    #if rcode_values:
-    #    r=db.executesql(get_insert_query(db.retrieve_code,rcode_values))
-    #    db.commit()
-    #if doc_values:
-    #    update_records(db.doc,doc_values)
     db.retrieve_code.campaign.default=campaign.id
+    q = (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
     updated=0
     for n,rc in enumerate(rcode_values):
         rc_id = db.retrieve_code.insert(**rc)
         dv= doc_values[n]
-        dv['rcode']=rc_id
-        dv['status']=DOC_LOCAL_STATE_OK[2]
+        dv.update(dict(rcode=rc_id,status=DOC_LOCAL_STATE_OK[2]))
         updated+=db((q) & (db.doc.object_name==rc['object_name'])).update(**dv)
     db.commit()
     t3= time.time()
-    return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(docs),insert=t3-t2))
+    return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(objs),insert=t3-t2))
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
