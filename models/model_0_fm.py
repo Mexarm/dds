@@ -59,6 +59,7 @@ def launch_campaign(campaign_id):
 
 def schedule_launch_campaign(campaign_id):
     c = get_campaign(campaign_id)
+    reset_campaign_progress(campaign_id)
     task = scheduler.queue_task(launch_campaign,
             pargs=[campaign_id],
             start_time=c.mg_acceptance_time,

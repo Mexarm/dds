@@ -330,7 +330,7 @@ def download_object(container_name,object_name,savepath,credentials):
     import pyrax.exceptions as exc
     import pyrax.utils as utils
 
-    chunk_size = 512 * 1024 #256kB
+    chunk_size = 512 * 1024 #512kB
 
     pyrax.set_setting("identity_type", "rackspace")
     pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
@@ -378,7 +378,7 @@ def save_attachment(doc,campaign,rcode):
 def register_on_db(campaign_id):
     import pyrax.utils as utils
     from gluon.fileutils import abspath
-
+    t1=time.time()
     sep=',' # ------ support diferent separators--------------
     beg=time.time()
     pth=prepare_subfolder('index_files/')
@@ -408,6 +408,10 @@ def register_on_db(campaign_id):
             values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
             rdict = make_doc_row(dict(zip(hdr_list, values)))
             rdict.update(dict(osequence=osequence))
+            rd_json=json.loads(rdict['json'])
+            if 'deliverytime' in rd_json:
+                if rd_json['deliverytime']:
+                    rdict.update(dict(deliverytime = parse_datetime(rd_json['deliverytime'],campaign.datetime_format)))
             row=Storage(rdict)
             ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
             valid=ret.id >0
@@ -416,8 +420,8 @@ def register_on_db(campaign_id):
                 errors+=1
             else:
                 ok+=1
-                n+=1
-            if n%1000 == 0:
+            n+=1
+            if ok%1000 == 0:
                 print '!clear!{}'.format(str(dict(ok=ok,errors=errors, processes=n)))
                 db.commit() #commit each row to avoid lock of the db
     remove(dld_file)
@@ -426,8 +430,10 @@ def register_on_db(campaign_id):
         tasks = db.campaign(campaign_id).tasks
         tasks =  tasks + [ret.id] if tasks else [ret.id]
         db(db.campaign.id==campaign_id).update(tasks=tasks)
-    db(db.campaign.id==campaign_id).update(total_campaign_recipients=n)
+    db(db.campaign.id==campaign_id).update(total_campaign_recipients=ok)
     db.commit()
+    t2=time.time()
+    return dict(ok=ok,errors=errors,total_rows=n,time=t2-t1)
 
 def reset_campaign_progress(campaign_id):
     return db(db.campaign.id == campaign_id).update(status_progress = 0.0, current_task='')
@@ -512,6 +518,7 @@ def cf_validate_doc_set2(campaign_id,objs):
     return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(objs),insert=t3-t2))
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
+    t0 = time.time()
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
               (db.doc.campaign==campaign_id)&(db.doc.status=='validated')).select()
     if not docs:
@@ -519,6 +526,7 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
         return
     campaign = get_campaign(campaign_id)
     min_datetime = None
+    t1= time.time()
     for d in docs:
         mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else campaign.mg_acceptance_time
         if mg_acceptance_time <= datetime.datetime.now():
@@ -528,7 +536,8 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
                 min_datetime = mg_acceptance_time
     if min_datetime:
         db(db.scheduler_task.id == W2PTASK.id).update( next_run_time=min_datetime)
-
+    t2= time.time()
+    return dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1)
 
 def event_data(**kwargs):
     # kwargs doc=<doc_id>, category = ..., event_type=... if campaign is not present it is calculated
@@ -589,7 +598,8 @@ def process_mg_response(*args,**kwargs):
     doc=get_doc(doc_id) #response, doc_id
     category='error'
     if res.status_code == 200:
-        doc.status=DOC_LOCAL_STATE_OK[4] if 'Queued' in res.json()['message'] else None
+        #doc.status=DOC_LOCAL_STATE_OK[4] if 'Queued' in res.json()['message'] else None
+        doc.status=DOC_LOCAL_STATE_OK[4]
         category = 'info'
     else:
         doc.status=DOC_LOCAL_STATE_ERR[1]
@@ -608,7 +618,8 @@ def process_mg_response(*args,**kwargs):
     db.commit()
     if res.status_code in [500,502,503,504]:
         raise Exception('Mailgun returned status code = {}'.format(res.status_code))
-    return ed_id
+    return res.ok
+#   return ed_id
 
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
