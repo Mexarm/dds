@@ -330,7 +330,7 @@ def download_object(container_name,object_name,savepath,credentials):
     import pyrax.exceptions as exc
     import pyrax.utils as utils
 
-    chunk_size = 256 * 1024 #256kB
+    chunk_size = 512 * 1024 #256kB
 
     pyrax.set_setting("identity_type", "rackspace")
     pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
