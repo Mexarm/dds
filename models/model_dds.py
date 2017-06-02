@@ -41,6 +41,9 @@ DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 MAX_ALLOWED_PACKET = db.executesql("SHOW VARIABLES like 'max_allowed_packet';")[0][1]
 
+BEEFREE_CLIENT_ID = myconf.get('befree.client_id')
+BEEFREE_CLIENT_SECRET = myconf.get('befree.client_secret')
+
 def compute_acceptance_time(dt):
     import datetime
     from dateutil.relativedelta import relativedelta
@@ -91,6 +94,7 @@ db.define_table('campaign',
                 Field('test_address','string',requires = IS_EMAIL(), label = 'email address to sent tests' ),
                 Field('email_subject','string',notnull=True, default=T('Your Document is Ready'),label=T('email subject')),
                 Field('html_body','text',notnull=True, default=''),
+                Field('BF_json','json'),
                 Field('logo','upload', uploadfield='logo_file'),
                 Field('logo_file', 'blob'),
                 Field('tasks','list:reference scheduler_task', default =[],writable=False,readable=False),

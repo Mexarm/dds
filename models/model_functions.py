@@ -95,6 +95,14 @@ def verify_webhook(api_key, token, timestamp, signature):
     return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
 #return hmac.compare_digest(signature, hmac_digest)
 
+def get_BF_token():
+    return requests.post('https://auth.getbee.io/apiauth',timeout=5,
+            headers = { 'content-type' : 'application/x-www-form-urlencoded'
+                        },
+            data = { 'grant_type' : 'password',
+                        'client_id' : BEEFREE_CLIENT_ID,
+                        'client_secret' : BEEFREE_CLIENT_SECRET
+                        })
 #--------------utilerias---------
 def get_container_name(uri):
     return uri.split('/')[0] if '/' in uri else uri
@@ -322,7 +330,7 @@ def download_object(container_name,object_name,savepath,credentials):
     import pyrax.exceptions as exc
     import pyrax.utils as utils
 
-    chunk_size = 512 * 1024 #256kB
+    chunk_size = 256 * 1024 #256kB
 
     pyrax.set_setting("identity_type", "rackspace")
     pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
@@ -592,11 +600,11 @@ def process_mg_response(*args,**kwargs):
         if not kwargs['update_doc']:
             update_doc=False
     if update_doc: doc.update_record()
-    ed_id = event_data(doc=doc.id,category=category,
-                event_type='send_doc',
-                event_data='{}'.format(res.reason),
-                event_json=res.json(),
-                response_status_code=res.status_code)
+#    ed_id = event_data(doc=doc.id,category=category,
+#                event_type='send_doc',
+#                event_data='{}'.format(res.reason),
+#                event_json=res.json(),
+#                response_status_code=res.status_code)
     db.commit()
     if res.status_code in [500,502,503,504]:
         raise Exception('Mailgun returned status code = {}'.format(res.status_code))
