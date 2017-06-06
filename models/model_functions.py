@@ -80,8 +80,8 @@ def daemon_master_event_poll():
         for d in domains:
             r=scheduler.queue_task(task_evt_poll,
                     pargs =[d, tsk_t1, tsk_t2],
-                    #period = EP_TASK_PERIOD,
-                    #repeats = EP_TASK_REPEATS,
+                    period = EP_DAEMON_PERIOD,
+                    repeats = EP_TASK_REPEATS,
                     retry_failed = -1,
                     timeout = EP_TASK_TIMEOUT,
                     group_name=WGRP_POLLERS)
@@ -183,7 +183,7 @@ def exist_webhook_token(token):
 
 def store_mg_event(event_dict): #store an event returned by mailgun example: event_dict = response.json()['items'][0]
     if 'id' in event_dict:
-        r=db(db.mg_event.event_id == event_dict['id']).select()
+        r=db(db.mg_event.event_id == event_dict['id']).select(db.mg_event.id,limitby=(0,1)).first()
         if r: return
     e=Storage(event_dict)
     if not e['message']['headers']['message-id']: return
@@ -286,7 +286,8 @@ def container_object_count_total_bytes(container_name,credentials):
     except exc.AuthenticationFailed as e:
         return e
     if pyrax.identity.authenticated:
-        cf=pyrax.cloudfiles
+        cf=pyrax.connect_to_cloudfiles(credentials.region)
+        #cf=pyrax.cloudfiles
         try:
             cont=cf.get_container(container_name)
             object_count=cont.object_count
@@ -304,13 +305,14 @@ def exist_object(container_name,object_name,credentials):
     import pyrax.exceptions as exc
     import pyrax.utils as utils
     pyrax.set_setting("identity_type", "rackspace")
-    pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
+    pyrax.set_default_region(credentials.region)
     try:
         pyrax.set_credentials(credentials.username, credentials.api_key)
     except exc.AuthenticationFailed as e:
         return e
     if pyrax.identity.authenticated:
-        cf=pyrax.cloudfiles
+        cf=pyrax.connect_to_cloudfiles(credentials.region)
+        #cf=pyrax.cloudfiles
         try:
             obj=cf.get_object(container_name,object_name)
         except exc.NoSuchContainer as e:
@@ -333,19 +335,20 @@ def download_object(container_name,object_name,savepath,credentials):
     chunk_size = 512 * 1024 #512kB
 
     pyrax.set_setting("identity_type", "rackspace")
-    pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
-    try:
-        pyrax.set_credentials(credentials.username, credentials.api_key)
-    except exc.AuthenticationFailed as e:
-        return e
+    pyrax.set_default_region(credentials.region)
+    #try:
+    pyrax.set_credentials(credentials.username, credentials.api_key)
+    #except exc.AuthenticationFailed as e:
+    #    return e
     if pyrax.identity.authenticated:
-        cf=pyrax.cloudfiles
-        try:
-            obj=cf.get_object(container_name,object_name)
-        except exc.NoSuchContainer as e:
-            return e
-        except exc.NoSuchObject as e:
-            return e
+        cf=pyrax.connect_to_cloudfiles(credentials.region)
+        #cf=pyrax.cloudfiles
+        #try:
+        obj=cf.get_object(container_name,object_name)
+        #except exc.NoSuchContainer as e:
+        #    return e
+        #except exc.NoSuchObject as e:
+        #    return e
         filename=path.join(savepath,utils.to_slug(container_name ) +'_'+ utils.to_slug(obj.name.replace('/','_')))  #filename = /savepath/container_name_folder_example.txt
         data_chunks = obj.fetch(chunk_size=chunk_size)
         with open(filename,'wb') as handle:
@@ -478,7 +481,8 @@ def cf_validate_doc_set2(campaign_id,objs):
     pyrax.set_default_region(credentials.region)
     pyrax.set_credentials(credentials.username, credentials.api_key)
     if pyrax.identity.authenticated:
-        cf=pyrax.cloudfiles
+        cf=pyrax.connect_to_cloudfiles(credentials.region)
+        #cf=pyrax.cloudfiles
         curr_key = cf.get_temp_url_key()
         if not curr_key == temp_url_key: #throw an exception if not the same key??
             cf.set_temp_url_key(temp_url_key)
@@ -616,7 +620,7 @@ def process_mg_response(*args,**kwargs):
 #                event_json=res.json(),
 #                response_status_code=res.status_code)
     db.commit()
-    if res.status_code in [500,502,503,504]:
+    if res.status_code in [400,401,402,404,500,502,503,504]:
         raise Exception('Mailgun returned status code = {}'.format(res.status_code))
     return res.ok
 #   return ed_id

@@ -52,6 +52,8 @@ tr.traceback {
     <div id="tabs-1">
             <h3>Campaign Settings</h3>
             {{=form}}
+<a href="{{=URL('editor','index',args=[campaign.id])}}" class="btn btn-info" role="button">Open Editor</a>
+
     </div>
 
             {{if context:}}
@@ -89,7 +91,6 @@ tr.traceback {
                 <th>last run time</th>
                 <th>args</th>
                 <th>vars</th>
-                <th>last run time</th>
                 <th>run output</th>
                 <th>run result</th>
             </tr>
@@ -105,7 +106,7 @@ tr.traceback {
                 <td>{{=ts.scheduler_task.args}}</td>
                 <td>{{=ts.scheduler_task.vars}}</td>
                 <td>{{=ts.scheduler_run.run_output}}</td>
-                <td>{{=ts.scheduler_run.run_output}}</td>
+                <td>{{=ts.scheduler_run.run_result}}</td>
         </tr>
               {{if ts.scheduler_run.traceback:}}
 			<tr class="traceback">

@@ -29,6 +29,7 @@
         right:0px;
       }
     </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
   </head>
   <body>
 
@@ -42,8 +43,8 @@
 
   </body>
 
-  <script src="static/js/Blob.js"></script>
-  <script src="static/js/fileSaver.js"></script>
+  <script src="{{=URL('static','/js/Blob.js')}}"></script>
+  <script src="{{=URL('static','/js/fileSaver.js')}}"></script>
   <script src="https://app-rsrc.getbee.io/plugin/BeePlugin.js"></script>
 
   <script type="text/javascript">
@@ -76,11 +77,21 @@
     };
 
     var save = function(filename, content) {
-        alert("Sanving: " +filename);
+/*        alert("Saving: " +filename);*/
       saveAs(
         new Blob([content], {type: 'text/plain;charset=utf-8'}),
         filename
       );
+     /* -----------------*/
+      alert('{{=save_uri}}');
+         $.post("{{=save_uri}}",
+            {
+              content: content
+            },
+           function(data, status){
+              alert("Data: " + data + "\nStatus: " + status);
+           });
+   /* ----------------*/
     };
 
     var specialLinks = [{
