@@ -52,15 +52,19 @@ def mg_update_local_campaign_stats(campaign_id): #update a campaign with the inf
         #r2.json() = {u'unsubscribed_count': 0, u'name': u'dds_demo1', u'created_at': u'Wed, 21 Dec 2016 23:59:35 GMT', u'clicked_count': 9, u'opened_count': 14, u'submitted_count': 6, u'delivered_count': 6, u'bounced_count': 0, u'complained_count': 0, u'id': u'xka6g', u'dropped_count': 0}
 
 def get_events(domain, query_options):
-    return requests.get(
+    r =  requests.get(
         "https://api.mailgun.net/v3/{}/events".format(domain),
         auth=('api', myconf.get('mailgun.api_key')),
         params=query_options)
+    r.raise_for_status()
+    return r
 
 def get_events_page(url):
-    return requests.get(
+    r = requests.get(
             url,
             auth=('api', myconf.get('mailgun.api_key')))
+    r.raise_for_status()
+    return r
 
 def task_evt_poll(domain,begin_ts,end_ts):
     qopt= dict(begin= begin_ts,end=end_ts)
@@ -93,7 +97,6 @@ def verify_webhook(api_key, token, timestamp, signature):
                             msg='{}{}'.format(timestamp, token),
                             digestmod=hashlib.sha256).hexdigest()
     return hmac.compare_digest(unicode(signature), unicode(hmac_digest))
-#return hmac.compare_digest(signature, hmac_digest)
 
 def get_BF_token():
     return requests.post('https://auth.getbee.io/apiauth',timeout=5,
@@ -197,9 +200,11 @@ def store_mg_event(event_dict): #store an event returned by mailgun example: eve
     mg_event['webhook_token']=e.token if 'token' in e else None
     mg_event['doc']=doc.id
     mg_event['campaign']=doc.campaign
-    struct_time=time.gmtime(e.timestamp)
-    dt=datetime.datetime.fromtimestamp(time.mktime(struct_time))
+#    struct_time=time.gmtime(e.timestamp)
+#    dt=datetime.datetime.fromtimestamp(time.mktime(struct_time))
+    dt=datetime.datetime.fromtimestamp(e.timestamp)
     mg_event['event_timestamp_dt']=dt
+#    mg_event['event_local_dt']=dt
     mg_event['event_timestamp']=e.timestamp
     mg_event['event_ip']=e.ip
     mg_event['event_']=e.event

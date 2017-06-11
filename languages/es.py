@@ -210,6 +210,7 @@
 'Event Geolocation Region': 'Event Geolocation Region',
 'Event Id': 'Event Id',
 'Event Ip': 'Event Ip',
+'Event Local Dt': 'Event Local Dt',
 'Event Log Level': 'Event Log Level',
 'Event Recipient': 'Event Recipient',
 'Event Timestamp': 'Event Timestamp',

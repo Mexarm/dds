@@ -3,7 +3,8 @@ from os import path
 from automaton import machines #http://docs.openstack.org/developer/automaton/examples.html#creating-a-simple-machine
 import pickle
 import uuid
-
+from dateutil.tz import tzlocal
+import pytz
 #
 #http://ckeditor.com/ para la edicion del body online
 #https://www.tinymce.com/ otro
@@ -53,6 +54,10 @@ def compute_acceptance_time(dt):
         return dt + relativedelta(days=-2)
     else:
         return dt
+
+#def local_dt(utc_dt):
+#        return utc_dt.replace(tzinfo=pytz.utc).astimezone(tzlocal()).replace(tzinfo=None)
+
 
 def mysql_add_index(table,column):
     if (db._uri[:5] == 'mysql'):
@@ -134,12 +139,10 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('unsubscribed_on','datetime',writable=False),
                 Field('complained_on','datetime',writable=False),
                 Field('stored_on','datetime',writable=False))
-
 mysql_add_index('doc','mailgun_id')
 mysql_add_index('doc','status')
 mysql_add_index('doc','object_name')
 mysql_add_index('doc','osequence')
-
 
 db.define_table('retrieve_code',
         #Field('doc','reference doc'),
@@ -150,7 +153,6 @@ db.define_table('retrieve_code',
                 Field('available_until','datetime', compute = lambda row : db(db.campaign.id == row.campaign).select(db.campaign.available_until,limitby = (0,1)).first().available_until) ,
                 Field('rcode','string',unique=True,length=UUID_LENGTH, notnull=True)
                 )
-
 mysql_add_index('retrieve_code','rcode')
 mysql_add_index('retrieve_code','object_name')
 
@@ -174,6 +176,7 @@ db.define_table('mg_event',
             Field('is_webhook','boolean',default = False,readable=False),
             Field('webhook_token','string',readable=False),
             Field('event_timestamp_dt','datetime',notnull=True), # UTC time
+            # Field('event_local_dt','datetime',notnull=True),
             Field('event_timestamp','double',notnull=True), #unix EPOCH
             Field('event_ip','string',length=15),
             Field('event_','string',length=15,notnull=True),

@@ -39,6 +39,7 @@
       Select template to load: <input id="choose-template" type="file" />
       <!-- You need to provide a send function to use this input field -->
       Send test e-mail to: <input id="integrator-test-emails" type="text"/>
+      <a href="{{=save_uri}}">save uri</a>
     </div>
 
   </body>
@@ -83,8 +84,8 @@
         filename
       );
      /* -----------------*/
-      alert('{{=save_uri}}');
-         $.post("{{=save_uri}}",
+      alert('{{=XML(save_uri)}}');
+      $.post("{{=XML(save_uri)}}",
             {
               content: content
             },

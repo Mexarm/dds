@@ -32,7 +32,8 @@ if not request.env.web2py_runtime_gae:
              pool_size=myconf.get('db.pool_size'),
              migrate_enabled=myconf.get('db.migrate'),
              check_reserved=['all']
-             # ,fake_migrate=True
+             #,fake_migrate=True
+             #    ,lazy_tables=True
               )
 else:
     # ---------------------------------------------------------------------

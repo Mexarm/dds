@@ -137,6 +137,7 @@ def list_docs():
             db.mg_event.event_timestamp_dt,db.mg_event.event_,db.mg_event.is_webhook,db.mg_event.event_ip,
             db.mg_event.event_log_level,db.mg_event.event_recipient,db.mg_event.event_tags,
             db.mg_event.event_geolocation_country]
+    #links = [ (dict(header = 'fecha' , body = lambda row: dir(row)))]
     smartgrid=SQLFORM.smartgrid(db.doc,
             linked_tables=['mg_event'],
             constraints=constraints,
@@ -146,6 +147,7 @@ def list_docs():
             editable=False,
             create=False,
             maxtextlength=35
+            # , links=links
             )
     return locals()
 
