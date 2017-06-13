@@ -19,7 +19,7 @@ import html2text   #sudo pip install html2text
 from gluon.storage import Storage
 from gluon.fileutils import abspath
 from gluon.template import render
-from os import path,mkdir,system,remove
+from os import path,mkdir,system,remove,walk,listdir
 from email.utils import formatdate
 
 URL_KEY = myconf.get('dds.url_key')
@@ -251,13 +251,19 @@ def verify_checksum(cs,filename):
         remove(filename)
         raise ValueError('checksum error for file {}'.format(filename))
 
+def recursive_list_files(pth):
+    files=list()
+    for root, directories, filenames in walk(pth):
+        for filename in filenames:
+            files.append(path.join(root,filename))
+    return files
+
 def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim storage
-    import os
     import shutil
     attach_temp = path.join(request.folder , 'attach_temp')
     if not path.isdir(attach_temp):
         return
-    for c_uuid in os.listdir(attach_temp):
+    for c_uuid in listdir(attach_temp):
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True
         if c:
@@ -267,14 +273,17 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
 
 def reclaim_attach_storage_campaign(c_uuid):
-    import os
+    import shutil
     attach_temp = path.join(request.folder , 'attach_temp')
     c_folder = path.join(attach_temp,c_uuid)
     c=get_campaign_by_uuid(c_uuid)
-    for f in os.listdir(cfolder):
+    for f in [entry for entry in listdir(c_folder) if path.isfile(path.join(c_folder,entry))]:
         row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='validated') ).select(limitby=(0,1)).first()
         if not row:
-            remove(path.join(c_folder,f))
+            pth=path.join(c_folder,f)
+            remove(pth)
+            if path.isdir(pth+'.unzip'):
+                shutil.rmtree(pth+'.unzip')
 
 #--------------------------rackspace cloudfiles ------------------
 def container_object_count_total_bytes(container_name,credentials):
@@ -374,6 +383,14 @@ def download_file(url,filename):
         f.write(res.read())
         f.close()
 
+def unzip_file(filename):
+    import zipfile
+    zip_ref = zipfile.ZipFile(filename, 'r')
+    unzip_path = prepare_subfolder(filemname+'.unzip')
+    zip_ref.extractall(unzip_path)
+    zip_ref.close()
+    return recursive_list_files(unzip_path)
+
 def save_attachment(doc,campaign,rcode):
     pth=prepare_subfolder('attach_temp/')
     pth=prepare_subfolder('attach_temp/{}'.format(campaign.uuid))
@@ -381,7 +398,9 @@ def save_attachment(doc,campaign,rcode):
     if not path.isfile(fullname):
         download_file(rcode.temp_url,fullname)
     verify_checksum(doc.checksum,fullname)
-    return fullname
+    if doc.object_name[-4:].lower() == '.zip' and campaign.uncompress_attachment:
+        return unzip_file(fullname)
+    return [fullname]
 
 def register_on_db(campaign_id):
     import pyrax.utils as utils
@@ -677,7 +696,9 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
         data['o:testmode']='true'
     #v:myvar
     if campaign.service_type == 'Attachment':
-        files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
+        #files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
+        for f in save_attachment(doc,campaign,rc):
+            files.append('attachment',open(f,'rb').read())
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
             files=files,
             data=data)
