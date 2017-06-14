@@ -386,7 +386,7 @@ def download_file(url,filename):
 def unzip_file(filename):
     import zipfile
     zip_ref = zipfile.ZipFile(filename, 'r')
-    unzip_path = prepare_subfolder(filemname+'.unzip')
+    unzip_path = prepare_subfolder(filename+'.unzip')
     zip_ref.extractall(unzip_path)
     zip_ref.close()
     return recursive_list_files(unzip_path)
@@ -671,6 +671,8 @@ def get_context(doc,campaign,rc):
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
 def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_mode=False):
+    import ntpath
+
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.rcode,doc.campaign)
@@ -698,7 +700,7 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
     if campaign.service_type == 'Attachment':
         #files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
         for f in save_attachment(doc,campaign,rc):
-            files.append('attachment',open(f,'rb').read())
+            files.append(('attachment',(ntpath.basename(f),open(f,'rb').read())))
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
             files=files,
             data=data)
