@@ -267,7 +267,7 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True
         if c:
-            if c.status in ['queuing','live','scheduled']:
+            if c.status in ['in approval','approved','queuing','live','scheduled']:
                 reclaim_attach_storage_campaign(c_uuid)
                 rmtree=False
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
@@ -378,7 +378,7 @@ def prepare_subfolder(subfolder):
     return pth
 
 def download_file(url,filename):
-        res=urllib2.urlopen(url)
+        res=urllib2.urlopen(url.replace(' ','%20'))
         f=open(filename,'wb')
         f.write(res.read())
         f.close()
@@ -405,8 +405,10 @@ def save_attachment(doc,campaign,rcode):
 def register_on_db(campaign_id):
     import pyrax.utils as utils
     from gluon.fileutils import abspath
+    import csv
     t1=time.time()
     sep=',' # ------ support diferent separators--------------
+    quotechar='"'
     beg=time.time()
     pth=prepare_subfolder('index_files/')
     campaign = get_campaign(campaign_id)
@@ -422,17 +424,21 @@ def register_on_db(campaign_id):
     db(db.doc.campaign==campaign_id).delete()
     db(db.retrieve_code.campaign==campaign_id).delete()
     db.commit()
-    with open(dld_file,'r') as handle:                                                            # check UNICODE SUPPORT!!!
-        hdr=handle.next() # read header (first line) strip \n
-        hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
+    with open(dld_file,'rb') as handle:                                                            # check UNICODE SUPPORT!!!
+        csv_reader = csv.reader(handle,delimiter=sep,quotechar=quotechar) #
+        #hdr=handle.next() # read header (first line) strip \n
+        #hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
+        hdr_list=csv_reader.next() #
         if not set(REQUIRED_FIELDS) < set(hdr_list):
             raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS)))
         db.doc.campaign.default=campaign_id
         n=0
         osequence = 0
-        for line in handle:
+        #for line in handle:
+        for line in csv_reader:#
             osequence +=1
-            values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
+            #values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
+            values = line #
             rdict = make_doc_row(dict(zip(hdr_list, values)))
             rdict.update(dict(osequence=osequence))
             rd_json=json.loads(rdict['json'])
