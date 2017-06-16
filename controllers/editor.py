@@ -17,11 +17,12 @@ def auth_token():
 
 @auth.requires_signature()
 def save_bf():
-    s = request.vars._signature
-    c = request.vars.campaign_uuid
-    return str(locals())
+    #s = request.vars._signature
+    #c = request.vars.campaign_uuid
+    #return str(locals())
     #if not URL.verify(request, hmac_key=URL_KEY): raise HTTP(403) #403 Forbidden	The request was a legal request, but the server is refusing to respond to it
     campaign_uuid = request.vars.campaign_uuid
-    content = request.vars.content
-    r=db(db.campaign.uuid==campaign_uuid).update(BF_json=content)
+    content_json = request.vars.content_json
+    content_html = request.vars.content_html
+    r=db(db.campaign.uuid==campaign_uuid).update(html_body=content_html, BF_json=content_json)
     if r : return response.json(dict(message = 'saved'))

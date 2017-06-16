@@ -65,6 +65,8 @@ def mysql_add_index(table,column):
         result=db.executesql("SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='{table}' AND index_name='{idx_name}';".format(**params)) #returns ((1L,),) if the index exists
         if not result[0][0]:
             return db.executesql("ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
+def advanced_editor(field, value):
+    return TEXTAREA(_id = str(field).replace('.','_'), _name=field.name, _class='text ckeditor', value=value, _cols=80, _rows=10)
 
 db.define_table('campaign',
                 Field('uuid','string',default=uuid.uuid4(), label='Campaign UUID', writable=False,readable=False),

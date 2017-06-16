@@ -1,4 +1,7 @@
 {{extend 'layout.html'}}
+{{block head}}
+  <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
+{{end}}
 <div>
 <h3>New Campaign</h3>
     <a href="{{=URL('select_mg_domain')}}" class="btn btn-info" role="button">Change Domain</a>
@@ -6,4 +9,9 @@
 
 <div class="col-sm-8">
  {{=form}}
+                 <script>
+                    CKEDITOR.replace( 'campaign_html_body',{
+                            language: 'es'
+                        } );
+                 </script>
 </div>

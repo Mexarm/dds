@@ -30,6 +30,7 @@ tr.traceback {
           $( "#tabs" ).tabs();
             } );
   </script>
+  <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
 {{end}}
 
 <div>
@@ -45,14 +46,23 @@ tr.traceback {
             {{pass}}
         <li><a href="#tabs-3">Campaign Events</a></li>
         <li><a href="#tabs-4">Campaign Tasks</a></li>
-        <li><a href="#tabs-5">Campaign Message</a></li>
+        <!--li><a href="#tabs-5">Campaign Message</a></li--!>
+            {{if False:}}
         <li><a href="#tabs-6">Campaign Stats</a></li>
+            {{pass}}
     </ul>
 
     <div id="tabs-1">
             <h3>Campaign Settings</h3>
             {{=form}}
-<a href="{{=URL('editor','index',args=[campaign.id])}}" class="btn btn-info" role="button">Open Editor</a>
+                 <script>
+                    CKEDITOR.replace( 'campaign_html_body',{
+                            language: "es",
+                            height: 350
+                        } );
+                 </script>
+<!--a href="{{=URL('editor','index',args=[campaign.id])}}" class="btn btn-info"
+    role="button">Open Editor</a--!>
 
     </div>
 
@@ -121,10 +131,7 @@ tr.traceback {
         </table>
     </div>
 
-    <div id="tabs-5">
-        <!--<iframe src="{{=URL('get_html_body',args=[campaign.id])}}" sandbox
-        srcdoc="{{=campaign.html_body}}"></iframe>-->
-
+    <!--div id="tabs-5">
         <iframe srcdoc="{{=campaign.html_body}}" sandbox="">
         <p>Your browser does not support iframes.</p>
         </iframe>
@@ -134,12 +141,13 @@ tr.traceback {
         <a href="https://www.mail-tester.com/" target="_blank">
             <p>Make sure you obtain a 9 or higher score at www.mail-tester.com, before launching your campaign</p>
         </a>
-    </div>
-
+    </div--!>
+            {{if False:}}
     <div id="tabs-6">
         {{=BEAUTIFY(campaign.mg_stats)}}
         {{=BEAUTIFY(campaign.mg_stats_unique)}}
     </div>
+            {{pass}}
 
 </div>
 

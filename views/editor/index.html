@@ -78,13 +78,11 @@
     };
 
     var save = function(filename, content) {
-/*        alert("Saving: " +filename);*/
       saveAs(
         new Blob([content], {type: 'text/plain;charset=utf-8'}),
         filename
       );
      /* -----------------*/
-      alert('{{=XML(save_uri)}}');
       $.post("{{=XML(save_uri)}}",
             {
               content: content
@@ -93,6 +91,17 @@
               alert("Data: " + data + "\nStatus: " + status);
            });
    /* ----------------*/
+    };
+
+    var dds_save = function(content_json,content_html) {
+      $.post("{{=XML(save_uri)}}",
+            {
+              content_json: content_json,
+              content_html: content_html
+            },
+           function(data, status){
+              alert("Status: " + status);
+           });
     };
 
     var specialLinks = [{
@@ -130,7 +139,8 @@
       mergeTags: mergeTags,
       mergeContents: mergeContents,
       onSave: function(jsonFile, htmlFile) {
-        save('newsletter.html', htmlFile);
+          dds_save(jsonFile, htmlFile);
+        /*  save('mybody.html',htmlFile);*/
       },
       onSaveAsTemplate: function(jsonFile) { // + thumbnail?
         save('newsletter-template.json', jsonFile);
