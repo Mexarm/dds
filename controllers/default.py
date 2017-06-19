@@ -77,7 +77,7 @@ def edit_campaign():
     db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
     db.campaign.uncompress_attachment.show_if = (db.campaign.service_type == 'Attachment')
     #db.campaign.html_body.readable=False
-    #db.campaign.html_body.writable=False
+    if not db.campaign.html_body.writable: db.campaign.html_body.readable=False
     db.campaign.BF_json.readable=False
     db.campaign.html_body.widget=advanced_editor
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
@@ -91,7 +91,7 @@ def edit_campaign():
         redirect(URL('list_campaign'))
     elif form.errors:
         response.flash='Errores'
-    return dict(form=form,tasks=tasks,fm_history=campaign.fm_history,campaign=campaign,context=context)
+    return dict(form=form,tasks=tasks,fm_history=campaign.fm_history,campaign=campaign,context=context,load_editor=(db.campaign.html_body.writable))
 
 @auth.requires_login()
 def get_fm_state():

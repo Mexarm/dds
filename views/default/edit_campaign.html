@@ -1,9 +1,9 @@
 {{extend 'layout.html'}}
 {{block head}}
-<meta name="viewport" content="width=device-width, initial-scale=1"> 
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <link rel="stylesheet" href="/resources/demos/style.css">
-<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<!--script src="https://code.jquery.com/jquery-1.12.4.js"></script--!>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <style>
 table {
@@ -30,7 +30,9 @@ tr.traceback {
           $( "#tabs" ).tabs();
             } );
   </script>
-  <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
+  {{if load_editor:}}
+     <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
+  {{pass}}
 {{end}}
 
 <div>
@@ -55,12 +57,14 @@ tr.traceback {
     <div id="tabs-1">
             <h3>Campaign Settings</h3>
             {{=form}}
+            {{if load_editor:}}
                  <script>
                     CKEDITOR.replace( 'campaign_html_body',{
                             language: "es",
                             height: 350
                         } );
                  </script>
+             {{pass}}
 <!--a href="{{=URL('editor','index',args=[campaign.id])}}" class="btn btn-info"
     role="button">Open Editor</a--!>
 
