@@ -74,7 +74,7 @@ def edit_campaign():
     #mg_update_local_campaign_stats(campaign_id)
     campaign=get_campaign(campaign_id)
     set_campaign_fields_writable(campaign.status)
-    db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
+    #db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
     db.campaign.uncompress_attachment.show_if = (db.campaign.service_type == 'Attachment')
     #db.campaign.html_body.readable=False
     if not db.campaign.html_body.writable: db.campaign.html_body.readable=False
@@ -166,8 +166,8 @@ def create_campaign():
     if not session.mg_domain:
         redirect(URL('select_mg_domain'))
     domain = session.mg_domain or myconf.get('mailgun.domain')
-    db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(domain)))
-    db.campaign.mg_campaign_id.readable=False
+    #db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(domain)))
+    #db.campaign.mg_campaign_id.readable=False
     db.campaign.is_active.readable=False
     db.campaign.status.readable = False
     db.campaign.total_campaign_recipients.readable = False

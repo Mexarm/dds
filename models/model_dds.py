@@ -71,9 +71,12 @@ def advanced_editor(field, value):
 db.define_table('campaign',
                 Field('uuid','string',default=uuid.uuid4(), label='Campaign UUID', writable=False,readable=False),
                 Field('mg_domain','string',label = 'Mailgun Domain'),
-                Field('mg_campaign_name','string',notnull=True,label=T('Mailgun Campaign Name')),
-                Field('mg_campaign_id','string',label=T('Mailgun Campaign id'),writable=False,
-                    compute= lambda (row): get_mg_campaign(mg_get_campaigns(row.mg_domain),row.mg_campaign_name)['id']), #retrieve mg_campaign_id from mailgun ),
+                Field('campaign_name','string',notnull=True,label=T('Campaign Name'),
+                     requires=[IS_NOT_EMPTY(),IS_NOT_IN_DB(db, 'campaign.campaign_name')]),
+                Field('mg_tags','list:string',label='Mailgun tags (2 maximum)'),
+                #Field('mg_campaign_name','string',notnull=True,label=T('Mailgun Campaign Name')),
+                #Field('mg_campaign_id','string',label=T('Mailgun Campaign id'),writable=False,
+                #    compute= lambda (row): get_mg_campaign(mg_get_campaigns(row.mg_domain),row.mg_campaign_name)['id']), #retrieve mg_campaign_id from mailgun ),
                 Field('test_mode','boolean',label='test mode (Mailgun will accept the messages but not deliver)'),
                 Field('cf_container_folder','string',notnull=True,label='Cloudfiles Container/Folder',
                      requires=[IS_NOT_EMPTY(),IS_NOT_IN_DB(db, 'campaign.cf_container_folder')]), #unique=True, gives error in mysql <class 'gluon.contrib.pymysql.err.InternalError'> (1071, u'Specified key was too long; max key length is 767 bytes')
@@ -97,7 +100,6 @@ db.define_table('campaign',
                 Field('container_bytes','integer',writable=False),
                 Field('download_limit','integer',notnull=True,default=0), #maximun times that each file can be downloaded, 0= no limit, only valid when service type is DDS Server URL
                 Field('maximum_bandwith', 'integer',notnull=True,default=0), #limit the maximum bandwith to consume in bytes, 0= no limit, only valid when service type is DDS Server URL
-                Field('mg_tags','list:string',label='Mailgun tags (3 maximum)'),
                 Field('from_name','string',label='From address name',default='Notifications (No Reply)'),
                 Field('from_address','string',requires = IS_EMAIL(), label = 'From email address'),
                 Field('test_address','string',requires = IS_EMAIL(), label = 'email address to sent tests' ),

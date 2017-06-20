@@ -604,7 +604,7 @@ def save_image(campaign_logo):
 
 def send_doc_wrapper(*args,**kwargs):
     #return errors about the rendering of the subject or view, if any
-    sd_kwargs = { k : kwargs[k] for k in ['to','mg_campaign_id','ignore_delivery_time','testmode'] if k in kwargs}
+    sd_kwargs = { k : kwargs[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in kwargs}
     try:
         return process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
     except (NameError,requests.exceptions.RequestException)  as e:
@@ -666,8 +666,9 @@ def get_context(doc,campaign,rc):
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
             uuid = campaign.uuid,
-            mg_id = campaign.mg_campaign_id,
-            mg_name = campaign.mg_campaign_name,
+            #mg_id = campaign.mg_campaign_id,
+            #mg_name = campaign.mg_campaign_name,
+            campaign_name = campaign.campaign_name,
             available_from = campaign.available_from,
             available_until = campaign.available_until,
             mg_tags = campaign.mg_tags,
@@ -676,7 +677,7 @@ def get_context(doc,campaign,rc):
         campaign_dict.update(dict(logo_src = 'cid:{}'.format(campaign.logo)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
-def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_mode=False):
+def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
 
     doc = get_doc(doc_id)
@@ -694,12 +695,14 @@ def send_doc(doc_id,to=None,mg_campaign_id=None,ignore_delivery_time=False,test_
           'to':to or doc.email_address,
           'subject':render(campaign.email_subject,context=context),
           'html':html_body,
-          'text':html2text.html2text(html_body.decode('utf-8')),
-          'o:campaign':mg_campaign_id or campaign.mg_campaign_id}
+          'text':html2text.html2text(html_body.decode('utf-8'))}
+    #,'o:campaign':mg_campaign_id or campaign.mg_campaign_id}
     if not ignore_delivery_time:
         data['o:deliverytime']=RFC_2822_section_3_3(doc.deliverytime or campaign.available_from)
+
+    data['o:tag']= [myconf.get('mailgun.tag_for_proofs')] if is_sample else [str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]]
     if campaign.mg_tags:
-        data['o:tag']=campaign.mg_tags[0:3] #maximum 3 tags per message
+        data['o:tag']+= campaign.mg_tags[0:2] #maximum 3 tags per message
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'
     #v:myvar
@@ -889,11 +892,11 @@ def live_change_status(campaign_id):
     db.commit()  #Check if this commit is necessary here
 # END Progress tracking and status changer ------------------------------------------------------------------------------------------
 def set_campaign_fields_writable(campaign_status):
-    l0=['mg_campaign_name', 'test_mode', 'delete_documents_on_expire', 'download_limit',
+    l0=['campaign_name', 'test_mode', 'delete_documents_on_expire', 'download_limit',
             'maximum_bandwith', 'mg_tags','available_from', 'datetime_format']
     l1=['from_name', 'from_address', 'test_address', 'email_subject', 'html_body',
             'logo', 'logo_file']
-    l2=[ 'cf_container_folder', 'index_file', 'service_type', 'available_until']
+    l2=[ 'cf_container_folder', 'index_file', 'service_type', 'uncompress_attachment','available_until']
     wfields = { 'defined' : l0+l1+l2,
                 'documents error': l0+l1+l2,
                 'documents ready' :l0+l1,

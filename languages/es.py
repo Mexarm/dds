@@ -78,6 +78,7 @@
 'Campaign': 'Campaign',
 'Campaign Delivery System': 'Campaign Delivery System',
 'Campaign Manager': 'Campaign Manager',
+'Campaign Name': 'Campaign Name',
 'Campaigns': 'Campaigns',
 'Cannot be empty': 'No puede estar vacío',
 'Cannot compile: there are errors in your app.        Debug it, correct errors and try again.': 'No se puede compilar: hay errores en su aplicación. Depure, corrija errores y vuelva a intentarlo.',

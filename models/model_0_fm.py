@@ -26,7 +26,8 @@ def send_test(campaign_id):
     ret = scheduler.queue_task(send_doc_wrapper,
             pargs=[doc_id],
             pvars=dict(to=get_campaign(campaign_id).test_address,
-                mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
+                #mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
+                is_sample=True,
                 update_doc=False,
                 ignore_delivery_time=True),
             group_name=WGRP_SENDERS1)
@@ -173,7 +174,7 @@ def get_fm_options(campaign_row):
     result=list()
     for o in options:
         result+=[(o,json.dumps(dict(campaign_id=campaign_row.id,
-                                    campaign_name=campaign_row.mg_campaign_name,
+                                    campaign_name=campaign_row.campaign_name,
                                     event=o,
                                     url=URL('process_event',vars=dict(campaign_id = campaign_row.id, event=o)),
                                     url_fm_state=URL('get_fm_state',vars=dict(campaign_id=campaign_row.id)),
