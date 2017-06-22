@@ -34,10 +34,13 @@ WGRP_SENDERS = 'senders'
 WGRP_SENDERS1 = 'senders1'
 WGRP_POLLERS = 'pollers'
 
-DAEMON_TASKS = [ ('daemon_progress_tracking',30),
-                ('daemon_status_changer',30),
+DAEMON_TASKS = [ ('daemon_progress_tracking',20),
+                ('daemon_status_changer',25),
                 ('daemon_master_event_poll',EP_DAEMON_PERIOD),
-                ('daemon_reclaim_attach_storage',300)] # (task_name, period in seconds)
+                ('daemon_reclaim_attach_storage',300),
+                ('daemon_event_poll_remove_old_tasks',86400)] # (task_name, period in seconds)
+
+MIDNIGHT_TASKS = ['daemon_event_poll_remove_old_tasks']
 
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 

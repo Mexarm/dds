@@ -92,6 +92,13 @@ def daemon_master_event_poll():
             db.commit()
         tsk_t1 = tsk_t2
 
+def daemon_event_poll_remove_old_tasks():
+    from dateutil.relativedelta import relativedelta
+    limit_dt = datetime.datetime.now() - relativedelta(days = int(myconf.get('eventpoll.delete_tasks_older_than')))
+    db((db.scheduler_task.last_run_time < limit_dt) & (db.scheduler_task.task_name == 'task_evt_poll')).delete()
+    db.commit()
+
+
 def verify_webhook(api_key, token, timestamp, signature):
     hmac_digest = hmac.new(key=api_key,
                             msg='{}{}'.format(timestamp, token),
