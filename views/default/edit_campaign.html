@@ -158,3 +158,16 @@ tr.traceback {
 <div class="col-sm-8">
 <a href="{{=URL('list_campaign')}}" class="btn btn-info" role="button">Regresar</a>
 </div>
+<script>
+$("#campaign_html_body__label").click(function(){
+        var e =$(this).next();
+        if (e.is(":visible"))
+          e.fadeOut('fast');
+         else
+             e.fadeIn('fast');
+});
+/*$(document).ready(function () {
+         $("#campaign_html_body__label").next().hide();
+          });*/
+</script>
+

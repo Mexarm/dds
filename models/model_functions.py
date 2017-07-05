@@ -378,6 +378,39 @@ def download_object(container_name,object_name,savepath,credentials):
         verify_checksum(obj.etag,filename)
         return filename
 
+def delete_files(campaign_id):
+    campaign = get_campaign(campaign_id)
+    credentials=get_credentials_storage()
+    container,prefix=split_uri(campaign.cf_container_folder)
+    pyrax.set_setting("identity_type", "rackspace")
+    pyrax.set_default_region(credentials.region)
+    pyrax.set_credentials(credentials.username, credentials.api_key)
+    if pyrax.identity.authenticated:
+        cf=pyrax.connect_to_cloudfiles(credentials.region)
+    cont = cf.get_container(container)
+    #docs = db((db.doc.campaign==campaign_id)&(db.doc.status=='queued (mailgun)')).select()
+    q = (db.doc.campaign==campaign_id)
+    docs = db(q).select(db.doc.object_name,groupby=db.doc.object_name)
+    objs = list()
+    result = list()
+    for doc in docs:
+        objs.append(path.join(prefix,doc.object_name))
+        if (len(objs) % 1000) == 0:
+            result.append(cf.bulk_delete(cont,objs,async=True))#,async=True
+            objs = []
+    if objs:
+        result.append(cf.bulk_delete(cont,objs,async=True))#,async=True
+    while True:
+        completed=True
+        for r in result:
+            if not r.completed: completed = False
+        if completed: break
+        time.sleep(30)
+    return dict(deleted = sum ( [ r.results['deleted'] for r in result ]), errors = [ r.results['errors'] for r in result ])
+    # cont.get_object(path.join(prefix,doc.object_name)).delete()
+    # Delete all the objects in the container and delete the container
+    #cf.delete_container(container,del_objects=True)
+
 def prepare_subfolder(subfolder):
     pth=path.join(abspath(request.folder),subfolder)
     if not path.isdir(pth):
@@ -568,17 +601,24 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     campaign = get_campaign(campaign_id)
     min_datetime = None
     t1= time.time()
+    sended = 0
     for d in docs:
         mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else campaign.mg_acceptance_time
         if mg_acceptance_time <= datetime.datetime.now():
             send_doc_wrapper(d.id)
+            sended+=1
         else:
-            if min_datetime > mg_acceptance_time:
+            if min_datetime:
+                if min_datetime > mg_acceptance_time:
+                    min_datetime = mg_acceptance_time
+            else:
                 min_datetime = mg_acceptance_time
-    if min_datetime:
-        db(db.scheduler_task.id == W2PTASK.id).update( next_run_time=min_datetime)
     t2= time.time()
-    return dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1)
+    r = dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1,sended=sended)
+    if min_datetime:
+        raise Exception('{}, Task has pending records to send in the future'.format(r))
+        #db(db.scheduler_task.id == W2PTASK.id).update( next_run_time=min_datetime)
+    return r
 
 def event_data(**kwargs):
     # kwargs doc=<doc_id>, category = ..., event_type=... if campaign is not present it is calculated
@@ -684,6 +724,9 @@ def get_context(doc,campaign,rc):
         campaign_dict.update(dict(logo_src = 'cid:{}'.format(campaign.logo)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
+def get_campaign_tag(campaign):
+    return (campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
+
 def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
 
@@ -707,8 +750,8 @@ def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode
     if not ignore_delivery_time:
         data['o:deliverytime']=RFC_2822_section_3_3(doc.deliverytime or campaign.available_from)
 
-    data['o:tag']= [myconf.get('mailgun.tag_for_proofs')] if is_sample else [str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]]
-    if campaign.mg_tags:
+    data['o:tag']= [myconf.get('mailgun.tag_for_proofs')] if is_sample else [get_campaign_tag(campaign)]
+    if campaign.mg_tags and not is_sample:
         data['o:tag']+= campaign.mg_tags[0:2] #maximum 3 tags per message
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'

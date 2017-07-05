@@ -33,6 +33,7 @@ WGRP_VALIDATORS = 'validators'
 WGRP_SENDERS = 'senders'
 WGRP_SENDERS1 = 'senders1'
 WGRP_POLLERS = 'pollers'
+WGRP_FINISHERS = 'finishers'
 
 DAEMON_TASKS = [ ('daemon_progress_tracking',20),
                 ('daemon_status_changer',25),
@@ -96,7 +97,7 @@ db.define_table('campaign',
                 Field('status','string',default=FM.states[0], writable=False), #Created, Verified, Active, Failed
                 Field('status_progress','float',default='',writable=False),
                 Field('current_task','string',writable=False),
-                Field('delete_documents_on_expire','boolean',default=True), #Delete all documents listed on the index file on the date entered on the available_until field.
+                Field('delete_documents_on_expire','boolean',default=True,label=T('Delete Documents on campaign finish')), #Delete all documents listed on the index file on the date entered on the available_until field.
                 Field('total_campaign_recipients','integer',writable=False),
                 Field('total_campaign_bytes','integer',writable=False), #total size of the container
                 Field('container_objects','integer',writable=False),

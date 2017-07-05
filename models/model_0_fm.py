@@ -71,7 +71,14 @@ def schedule_launch_campaign(campaign_id):
 
 def finished_campaign(campaign_id):
     #finish the campaign, delete storage files etc
-    pass
+    c = get_campaign(campaign_id)
+    if c.delete_documents_on_expire:
+        task = scheduler.queue_task(delete_files,
+            pargs=[campaign_id],
+            group_name=WGRP_FINISHERS)
+        c.tasks = c.tasks + [task.id] if c.tasks else [task.id]
+        r = c.update_record()
+        return task
 
 actions = {
     'validating documents' : validate_documents,
