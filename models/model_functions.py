@@ -470,7 +470,7 @@ def register_on_db(campaign_id):
         #hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
         hdr_list=csv_reader.next() #
         if not set(REQUIRED_FIELDS) < set(hdr_list):
-            raise ValueError('required fields "{}" are not present in file {}/{}'.format(','.join(REQUIRED_FIELDS)))
+            raise ValueError('required fields "{}" are not present in file {}/{}/{}'.format(','.join(REQUIRED_FIELDS),container,prefix,index_file))
         db.doc.campaign.default=campaign_id
         n=0
         osequence = 0
@@ -725,7 +725,7 @@ def get_context(doc,campaign,rc):
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
 def get_campaign_tag(campaign):
-    return (campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
+    return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
 
 def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath

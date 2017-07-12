@@ -152,6 +152,16 @@ mysql_add_index('doc','mailgun_id')
 mysql_add_index('doc','status')
 mysql_add_index('doc','object_name')
 mysql_add_index('doc','osequence')
+db.doc.deliverytime.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.accepted_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.rejected_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.delivered_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.failed_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.opened_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.clicked_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.unsubscribed_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.complained_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+db.doc.stored_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
 
 db.define_table('retrieve_code',
         #Field('doc','reference doc'),
@@ -205,3 +215,4 @@ db.define_table('mg_event',
             )
 mysql_add_index('mg_event','event_id')
 mysql_add_index('mg_event','webhook_token')
+db.mg_event.event_timestamp_dt.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
