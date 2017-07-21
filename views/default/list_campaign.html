@@ -32,7 +32,9 @@
     </td>
     <td>{{=row.mg_domain}}</td>
     <td>{{=row.campaign_name}}
+        {{if row.status in ['defined','documents error','documents ready','in approval']:}}
         <a target="_blank" class="btn btn-warning fm-action" href="{{=URL('editor','ckeditor',args=[row.id])}}">open editor</a>
+        {{pass}}
     </td>
     <td>{{=row.cf_container_folder}}</td>
     <td>{{=row.service_type}}</td>
