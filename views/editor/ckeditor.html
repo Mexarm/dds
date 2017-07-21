@@ -1,0 +1,12 @@
+{{extend 'layout.html'}}
+{{block head}}
+  <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
+{{end}}
+{{=form}}
+
+                 <script>
+                    CKEDITOR.replace( 'campaign_html_body',{
+                            language: "es-mx",
+                            height: 500
+                        } );
+                 </script>

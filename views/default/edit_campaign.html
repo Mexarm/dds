@@ -30,9 +30,6 @@ tr.traceback {
           $( "#tabs" ).tabs();
             } );
   </script>
-  {{if load_editor:}}
-     <script src="{{=URL('static','/ckeditor/ckeditor.js')}}"></script>
-  {{pass}}
 {{end}}
 
 <div>
@@ -57,14 +54,6 @@ tr.traceback {
     <div id="tabs-1">
             <h3>Campaign Settings</h3>
             {{=form}}
-            {{if load_editor:}}
-                 <script>
-                    CKEDITOR.replace( 'campaign_html_body',{
-                            language: "es",
-                            height: 350
-                        } );
-                 </script>
-             {{pass}}
 <!--a href="{{=URL('editor','index',args=[campaign.id])}}" class="btn btn-info"
     role="button">Open Editor</a--!>
 

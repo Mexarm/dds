@@ -194,5 +194,5 @@ def get_fm_action_buttons(campaign_id):
     campaign = get_campaign(campaign_id)
     buttons=[]
     for o,j in get_fm_options(campaign):
-        buttons+= [ str(BUTTON(o,_type="button", _class="btn btn-info fm-action",  _data=j))]  #<button type="button" class="btn btn-info fm-action" data="{{=j}}">{{=o}}</button>
+        buttons+= [ str(BUTTON(o,_type="button", _class="btn {} fm-action".format('btn-success' if o == 'launch campaign' else 'btn-info'),  _data=j))]  #<button type="button" class="btn btn-info fm-action" data="{{=j}}">{{=o}}</button>
     return XML ( ''.join(buttons))
