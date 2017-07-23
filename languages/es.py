@@ -141,6 +141,7 @@
 'Delete': 'Eliminar',
 'delete': 'eliminar',
 'delete all checked': 'eliminar marcados',
+'Delete Documents on campaign finish': 'Delete Documents on campaign finish',
 'Delete:': 'Eliminar:',
 'Delivered On': 'Delivered On',
 'Delivery Campaigns': 'Delivery Campaigns',
