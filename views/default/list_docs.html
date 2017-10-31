@@ -1,2 +1,45 @@
 {{extend 'layout.html'}}
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1"
+        aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="#">Campaign:
+        <b>({{=campaign.id}}) {{=campaign.campaign_name}}</b>
+      </a>
+    </div>
+    {{if render_dropdown:}}
+    <ul class="nav navbar-nav navbar-right">
+
+      <li class="dropdown">
+        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">choose view </a>
+        <ul class="dropdown-menu">
+          <li {{if request.args[1]=='none' :}} class="disabled" {{pass}}>
+            <a href="{{=URL('list_docs',args = [campaign.id,'none'])}}">Normal view</a>
+          </li>
+          <li {{if request.args[1]=='set_as_sample' :}} class="disabled" {{pass}}>
+            <a href="{{=URL('list_docs',args = [campaign.id,'set_as_sample'])}}">select samples</a>
+          </li>
+          <li {{if request.args[1]=='delete_records' :}} class="disabled" {{pass}}>
+            <a href="{{=URL('list_docs',args = [campaign.id,'delete_records'])}}">select records to delete</a>
+          </li>
+        </ul>
+      </li>
+    </ul>
+    {{pass}}
+  </div>
+  <!-- /.container-fluid -->
+</nav>
+{{if cview == 'set_as_sample':}}
+<h4><span class="label label-info">Please select records to include in the sample set, and press "SET AS SAMPLE" below</span></h4>
+{{pass}}
+{{if cview == 'delete_records':}}
+<h4><span class="label label-danger">Please select records to delete and press "DELETE RECORDS" below</span></h4>
+{{pass}}
 {{=smartgrid}}

@@ -33,7 +33,9 @@
     <td>{{=row.mg_domain}}</td>
     <td>{{=row.campaign_name}}
         {{if row.status in ['defined','documents error','documents ready','in approval']:}}
-        <a target="_blank" class="btn btn-warning fm-action" href="{{=URL('editor','ckeditor',args=[row.id])}}">open editor</a>
+            <a target="_blank" class="btn btn-warning" href="{{=URL('editor','ckeditor',args=[row.id])}}">open editor</a>
+        {{else:}}
+            <a class="btn btn-link" href="{{=URL('default','get_html_body',args=[row.id])}}" target="_blank">view</a> 
         {{pass}}
     </td>
     <td>{{=row.cf_container_folder}}</td>
@@ -46,7 +48,7 @@
         {{=row.status_progress}}%
         {{pass}}
         </div></td>
-        <td>{{=row.total_campaign_recipients}}<br><span><a href={{=URL('list_docs',args=[row.id])}}>{{=T('recipients')}}</a></span></td>
+        <td>{{=row.total_campaign_recipients}}<br><span><a href={{=URL('list_docs',args=[row.id, 'none'])}}>{{=T('recipients')}}</a></span></td>
     <td>{{=row.container_objects}}</td>
     <td>{{=row.from_address}}</td>
     <td>{{=row.email_subject}}</td>

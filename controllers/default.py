@@ -20,7 +20,7 @@ def index():
     """
     #redirect(URL('list_campaign'))
     #response.flash = T("Hello World")
-    if auth.user :
+    if auth.user:
         redirect(URL('list_campaign'))
     return dict(message=T('Welcome to CDS!@{}'.format(myconf.get('host.server'))))
 
@@ -28,25 +28,27 @@ def index():
 def process_event():
     from automaton import exceptions
     campaign_id=request.vars.campaign_id
-    event=request.vars.event
+    event = request.vars.event
     if not (campaign_id and event): return "Not valid variables"
     campaign = db.campaign(campaign_id)
     if auth.user.id == campaign.created_by:
         try:
-            f = FM_process_event(campaign_id,event)
+            f = FM_process_event(campaign_id, event)
             if f:
-                r= f()
+                r = f()
             return "sucess!"
         except exceptions.AutomatonException as e:
             return e.message
     else:
-         return "Only the owner "+ campaign.created_by +  " can process the event"
+        return "Only the owner "+ campaign.created_by +  " can process the event"
 
 
-#@auth.requires_login()
-#def get_html_body():
-#    campaign=get_campaign(request.args[0])
-#    return campaign.html_body
+@auth.requires_login()
+def get_html_body():
+    campaign=get_campaign(request.args[0])
+    if campaign:
+        return campaign.html_body
+    raise HTML(404)
 
 @auth.requires_login()
 def workers():
@@ -132,6 +134,12 @@ def list_campaign():
 @auth.requires_login()
 def list_docs():
     campaign_id=int(request.args[0])
+    cview = request.args[1][:]
+    campaign = get_campaign(campaign_id)
+    fn=None
+    selectable_states = ['defined','validating documents','documents ready','documents error','in approval','approved']
+    if campaign.status in selectable_states:
+        fn = {'set_as_sample':set_as_sample,'delete_records':delete_records, 'none':None}[cview]
     db.mg_event.is_webhook.readable=True
     constraints={'doc':db.doc.campaign==campaign_id}
     fields=[db.doc.record_id,db.doc.object_name,db.doc.email_address,
@@ -145,14 +153,25 @@ def list_docs():
     smartgrid=SQLFORM.smartgrid(db.doc,
             linked_tables=['mg_event'],
             constraints=constraints,
-            args=request.args[:1],
+            args=request.args[:2],
             fields=fields,
             deletable=False,
             editable=False,
             create=False,
+            selectable=fn,
             maxtextlength=35
             # , links=links
             )
+    render_dropdown = False
+    if smartgrid.rows and campaign.status in selectable_states:
+        if 'doc.record_id' in smartgrid.rows.colnames:
+            render_dropdown = True
+            if fn:
+                submit = smartgrid.element('.web2py_grid').element('.web2py_table').element('form').element('input',_type='submit')
+                submit['_value'] = cview.replace('_',' ')
+            
+                if cview == 'delete_records':
+                    submit["_onclick"] = "return confirm('Do you want to delete the selected records?');"
     return locals()
 
 @auth.requires_login()

@@ -22,17 +22,20 @@ def validate_documents(campaign_id):
 
 def send_test(campaign_id):
     campaign=get_campaign(campaign_id)
-    doc_id = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).select(limitby=(0,1)).first().id
-    ret = scheduler.queue_task(send_doc_wrapper,
-            pargs=[doc_id],
-            pvars=dict(to=get_campaign(campaign_id).test_address,
+    first_doc = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).select(limitby=(0,1))
+    sample_set = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated') & (db.doc.is_sample == True)).select(db.doc.id,limitby=(0,myconf.get('dds.max_samples')))
+    tasks = campaign.tasks or []
+    for doc in sample_set or first_doc: 
+        tasks.append(
+            scheduler.queue_task(send_doc_wrapper,
+                pargs=[doc.id],
+                pvars=dict(to=get_campaign(campaign_id).test_address,
                 #mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
                 is_sample=True,
                 update_doc=False,
                 ignore_delivery_time=True),
-            group_name=WGRP_SENDERS1)
-    tasks = campaign.tasks
-    tasks =  tasks + [ret.id] if tasks else [ret.id]
+                group_name=WGRP_SENDERS1).id
+            )
     db(db.campaign.id==campaign_id).update(tasks=tasks)
     #db.commit()
 

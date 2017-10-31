@@ -292,6 +292,22 @@ def reclaim_attach_storage_campaign(c_uuid):
             if path.isdir(pth+'.unzip'):
                 shutil.rmtree(pth+'.unzip')
 
+def set_as_sample(ids):
+    if ids:
+        campaign_id = db(db.doc.id == ids[0]).select().first().campaign
+        db(db.doc.campaign == campaign_id).update(is_sample = False)
+        session.flash = "%i records were included in samples set" % db(db.doc.id.belongs(ids)).update(is_sample=True)
+
+def update_total_campaign_recipients(campaign_id):
+    ok = db(db.doc.campaign == campaign_id).count()
+    db(db.campaign.id==campaign_id).update(total_campaign_recipients=ok)
+
+def delete_records(ids):
+    if ids:
+        campaign_id = db(db.doc.id == ids[0]).select().first().campaign
+        session.flash = "%i records were deleted" % db(db.doc.id.belongs(ids)).delete()
+        update_total_campaign_recipients(campaign_id)
+        
 #--------------------------rackspace cloudfiles ------------------
 def container_object_count_total_bytes(container_name,credentials):
     """

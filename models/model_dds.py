@@ -123,6 +123,7 @@ db.define_table('campaign',
 
 db.define_table('doc', Field('campaign','reference campaign'),
                 Field('osequence','integer',notnull=True,label='original sequence'), #original sequence
+                Field('is_sample','boolean',default=False,label='included in samples set'),
                 Field('record_id','string',notnull=True),                #required on index.csv fieldname = record_id
                 Field('object_name','string',notnull=True), #unique=True?              #required on index.csv fieldname = object_name
                 Field('rcode','integer',default=[],writable=False,readable=False),
