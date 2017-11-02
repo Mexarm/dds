@@ -29,7 +29,7 @@ def send_test(campaign_id):
         tasks.append(
             scheduler.queue_task(send_doc_wrapper,
                 pargs=[doc.id],
-                pvars=dict(to=get_campaign(campaign_id).test_address,
+                pvars=dict(to=campaign.test_address,
                 #mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
                 is_sample=True,
                 update_doc=False,
@@ -114,6 +114,7 @@ FM.add_transition('documents error','validating documents','validate documents')
 FM.add_transition('in approval','in approval','send test')
 FM.add_transition('in approval','approved','approve')
 FM.add_transition('approved','queueing','launch campaign')
+FM.add_transition('approved','in approval','revert approval')
 FM.add_transition('queueing','live','_go live')
 FM.add_transition('queueing','scheduled','_go scheduled')
 FM.add_transition('scheduled','live','_go live')
@@ -131,6 +132,7 @@ FM_STATES_TO_UPDATE = ['validating documents', 'queueing', 'scheduled', 'live']
 |        Start         |       Event        |         End          | On Enter | On Exit |
 +----------------------+--------------------+----------------------+----------+---------+
 |       approved       |  launch campaign   |       queueing       |    .     |    .    |
+|       approved       |  revert approval   |     in approval      |    .     |    .    |
 |     @defined[^]      | validate documents | validating documents |    .     |    .    |
 |   documents error    | validate documents | validating documents |    .     |    .    |
 |   documents ready    |     send test      |     in approval      |    .     |    .    |

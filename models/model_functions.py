@@ -192,6 +192,8 @@ def exist_webhook_token(token):
     return db(db.mg_event.webhook_token == token).count()
 
 def store_mg_event(event_dict): #store an event returned by mailgun example: event_dict = response.json()['items'][0]
+    if 'reason' in event_dict:
+        if event_dict['reason'] == 'bounce': return # discard bounce events, this events does not contain a valid message-id 
     if 'id' in event_dict:
         r=db(db.mg_event.event_id == event_dict['id']).select(db.mg_event.id,limitby=(0,1)).first()
         if r: return
@@ -240,6 +242,7 @@ def store_mg_events(response):
     if response.status_code != 200: return
     rdict=response.json()
     if not rdict['items']: return
+    if len(rdict['items']) == 0: return
     for e in rdict['items']:
         store_mg_event(e)
     next_page=rdict['paging']['next']
@@ -656,7 +659,6 @@ def make_doc_row(row):
     return fields
 
 def save_image(campaign_logo):
-
     (filename_, stream_) = db.campaign.logo.retrieve(campaign_logo)
     pth=path.join(abspath(request.folder),'logos/')
     if not path.isdir(pth):
