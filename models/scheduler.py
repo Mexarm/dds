@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from gluon.scheduler import Scheduler
-scheduler = Scheduler(db)
+scheduler = Scheduler(db, heartbeat = 6, group_names = ['main', WGRP_DAEMONS,WGRP_VALIDATORS,WGRP_SENDERS,WGRP_SENDERS1,WGRP_POLLERS,WGRP_FINISHERS])
 
 def __schedule_daemon_tasks():
     for t in DAEMON_TASKS:
