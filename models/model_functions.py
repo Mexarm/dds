@@ -233,8 +233,10 @@ def store_mg_event(event_dict): #store an event returned by mailgun example: eve
     r=db.mg_event.insert(**mg_event)
     if e.event in [ 'accepted', 'rejected', 'delivered', 'failed', 'opened', 'clicked', 'unsubscribed', 'complained', 'stored' ]:
         field=e.event + '_on'
-        doc[field]=get_latest_dt(dt,doc[field])
-        doc.update_record()
+        doc_field=get_latest_dt(dt,doc[field])
+        if doc_field != doc[field]:
+            doc[field] = doc_field
+            doc.update_record()
     db.commit()
     return r
 
