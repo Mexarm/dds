@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from gluon.scheduler import Scheduler
-#scheduler = Scheduler(db, heartbeat = 6, group_names = ['main', WGRP_DAEMONS,WGRP_VALIDATORS,WGRP_SENDERS,WGRP_SENDERS1,WGRP_POLLERS,WGRP_FINISHERS])
-scheduler = Scheduler(db, heartbeat = 6)
+
+scheduler = Scheduler(db, heartbeat = int(myconf.get('scheduler.heartbeat')))
 
 def __schedule_daemon_tasks():
     for t in DAEMON_TASKS:
@@ -28,6 +28,6 @@ def __schedule_daemon_task(task_tuple):
                 retry_failed = -1, # -1  = unlimited
                 group_name = WGRP_DAEMONS
                 )
-    db.commit()
+        db.commit()
 
 __schedule_daemon_tasks()

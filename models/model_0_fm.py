@@ -34,6 +34,7 @@ def send_test(campaign_id):
                 is_sample=True,
                 update_doc=False,
                 ignore_delivery_time=True),
+                immediate=True,
                 group_name=WGRP_SENDERS1).id
             )
     db(db.campaign.id==campaign_id).update(tasks=tasks)

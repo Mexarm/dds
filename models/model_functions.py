@@ -89,13 +89,14 @@ def daemon_master_event_poll():
                     retry_failed = -1,
                     timeout = EP_TASK_TIMEOUT,
                     group_name=WGRP_POLLERS)
-            db.commit()
+        db.commit()
         tsk_t1 = tsk_t2
 
 def daemon_event_poll_remove_old_tasks():
     from dateutil.relativedelta import relativedelta
     limit_dt = datetime.datetime.now() - relativedelta(days = int(myconf.get('eventpoll.delete_tasks_older_than')))
-    db((db.scheduler_task.last_run_time < limit_dt) & (db.scheduler_task.task_name == 'task_evt_poll')).delete()
+    st = db.scheduler_task
+    db((st.last_run_time < limit_dt) & (st.task_name == 'task_evt_poll') & (st.status == 'COMPLETED')).delete()
     db.commit()
 
 
@@ -289,6 +290,7 @@ def reclaim_attach_storage_campaign(c_uuid):
     attach_temp = path.join(request.folder , 'attach_temp')
     c_folder = path.join(attach_temp,c_uuid)
     c=get_campaign_by_uuid(c_uuid)
+    if c.status == 'in approval': return #dont reclaim storage in approval
     for f in [entry for entry in listdir(c_folder) if path.isfile(path.join(c_folder,entry))]:
         row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='validated') ).select(limitby=(0,1)).first()
         if not row:
@@ -299,8 +301,8 @@ def reclaim_attach_storage_campaign(c_uuid):
 
 def set_as_sample(ids):
     if ids:
-        campaign_id = db(db.doc.id == ids[0]).select().first().campaign
-        db(db.doc.campaign == campaign_id).update(is_sample = False)
+        campaign_id = db(db.doc.id == ids[0]).select(limitby=(0,1)).first().campaign
+        db((db.doc.campaign == campaign_id) & (db.doc.is_sample == True)).update(is_sample = False)
         session.flash = "%i records were included in samples set" % db(db.doc.id.belongs(ids)).update(is_sample=True)
 
 def update_total_campaign_recipients(campaign_id):
@@ -309,7 +311,7 @@ def update_total_campaign_recipients(campaign_id):
 
 def delete_records(ids):
     if ids:
-        campaign_id = db(db.doc.id == ids[0]).select().first().campaign
+        campaign_id = db(db.doc.id == ids[0]).select(limitby=(0,1)).first().campaign
         session.flash = "%i records were deleted" % db(db.doc.id.belongs(ids)).delete()
         update_total_campaign_recipients(campaign_id)
         
