@@ -52,12 +52,42 @@ def get_html_body():
 
 @auth.requires_login()
 def workers():
-    workers = db.executesql("select substring_index(worker_name,'#',1) node,group_names,count(id) from scheduler_worker group by node,group_names order by node,group_names")
-    count = db(db.scheduler_worker.id>0).count()
-    return dict(workers=workers,count=count)
+    from gluon.tools import prettydate
+    sdb = db
+    sw, st, sr = (sdb.scheduler_worker, sdb.scheduler_task,sdb.scheduler_run)
+    workers = sdb.executesql("select substring_index(worker_name,'#',1) node,group_names,count(id) from scheduler_worker group by node,group_names order by node,group_names")
+    latest_task_id=get_latest_task_id('task_evt_poll')
+    latest_task=scheduler.task_status(latest_task_id) if  latest_task_id else None
+    events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
+    events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
+    events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
+    events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
+    count = sdb(sdb.scheduler_worker.id>0).count()
+    ticker,tasks,completed_tasks = (None,None,None)
+    if auth.has_membership(role = 'advanced_scheduler_viewer'):
+        ticker = sdb(sw.is_ticker == True).select(sw.worker_stats).first()
+        tasks = sdb(st.status != 'COMPLETED').select(st.id,st.application_name,st.task_name,st.status,
+                                            st.group_name,st.args,st.vars,st.start_time,
+                                            st.times_run,st.times_failed,st.last_run_time,
+                                            st.next_run_time,st.assigned_worker_name,
+                                            limitby=(0,500),
+                                            orderby=(st.status,~st.last_run_time))
+        completed_tasks = sdb(st.status=='COMPLETED').select(st.id,st.application_name,st.task_name,st.status,
+                                            st.group_name,st.args,st.vars,st.start_time,
+                                            st.times_run,st.times_failed,st.last_run_time,
+                                            st.next_run_time,st.assigned_worker_name,
+                                            limitby=(0,50),
+                                            orderby=(~st.last_run_time))
+    return dict(workers=workers,ticker = ticker, count=count, tasks = tasks, completed_tasks = completed_tasks,
+            events_horizont = dict (dt = events_horizont_dt, 
+                                    ts = events_horizont_ts,
+                                    pd = prettydate(events_horizont_dt)
+                                   )
+                )
 
 def webhook():
-    #request.requires_https()
+    if myconf.get('auth.secure'):
+        request.requires_https()
     v = request.vars
     t = cache.ram(v.token,lambda:exist_webhook_token(v.token),time_expire=15)
     if t: raise HTTP(400)

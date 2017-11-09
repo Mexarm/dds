@@ -217,3 +217,6 @@ db.define_table('mg_event',
 mysql_add_index('mg_event','event_id')
 mysql_add_index('mg_event','webhook_token')
 db.mg_event.event_timestamp_dt.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
+
+if not auth.db(auth.db.auth_group.role == 'advanced_scheduler_viewer').count():
+    auth.add_group('advanced_scheduler_viewer', 'Users that can view more scheduler datails')

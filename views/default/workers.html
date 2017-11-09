@@ -25,3 +25,38 @@
 </table>
         Total {{=count}}
 </div>
+<hr>
+<h3>
+    Events Horizont
+</h3>
+<div>
+    datetime : {{=events_horizont['dt']}}, timestamp : {{=events_horizont['ts']}} <i>({{=events_horizont['pd']}})</i>
+</div>
+{{if ticker:}}
+<hr>
+<h3>
+    Ticker Stats
+</h3>
+<div>
+    {{=BEAUTIFY(ticker.worker_stats)}}
+</div>
+{{pass}}
+
+{{if tasks:}}
+<hr>
+<h3>
+    Tasks in progress
+</h3>
+<div>
+    {{=BEAUTIFY(tasks)}}
+</div>
+{{pass}}
+{{if completed_tasks:}}
+<hr>
+<h3>
+    recently completed Tasks
+</h3>
+<div>
+    {{=BEAUTIFY(completed_tasks)}}
+</div>
+{{pass}}

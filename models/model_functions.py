@@ -70,10 +70,13 @@ def task_evt_poll(domain,begin_ts,end_ts):
     qopt= dict(begin= begin_ts,end=end_ts)
     store_mg_events(get_events(domain,qopt))
 
+def get_latest_task_id(task_name):
+    max = db.scheduler_task.id.max()
+    return db(db.scheduler_task.task_name== task_name).select(max).first()[max]
+
 def daemon_master_event_poll():
     now_ts = time.time()
-    max = db.scheduler_task.id.max()
-    latest_task_id=db(db.scheduler_task.task_name== 'task_evt_poll').select(max).first()[max]
+    latest_task_id=get_latest_task_id('task_evt_poll')
     latest_task=scheduler.task_status(latest_task_id) if  latest_task_id else None
     t2 = now_ts - EP_DELAY
     time_slice = t2 - json.loads(latest_task.args)[2] if latest_task else EP_TIME_SLICE
@@ -712,13 +715,14 @@ def process_mg_response(*args,**kwargs):
     if 'update_doc' in kwargs:
         if not kwargs['update_doc']:
             update_doc=False
-    if update_doc: doc.update_record()
+    if update_doc: 
+        doc.update_record()
 #    ed_id = event_data(doc=doc.id,category=category,
 #                event_type='send_doc',
 #                event_data='{}'.format(res.reason),
 #                event_json=res.json(),
 #                response_status_code=res.status_code)
-    db.commit()
+        db.commit()
     if res.status_code in [400,401,402,404,500,502,503,504]:
         raise Exception('Mailgun returned status code = {}'.format(res.status_code))
     return res.ok
