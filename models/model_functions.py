@@ -767,7 +767,7 @@ def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode
         files.append(("inline",open(logofile)))
     context=get_context(doc,campaign,rc)
     html_body = render(campaign.html_body,context=context)
-    sample_text = is_sample and "[sample {}:{}={}]".format(campaig.id,doc.id,doc.record_id) or ""
+    sample_text = "[sample c={},d={},r={}]".format(campaig.id,doc.id,doc.record_id) if is_sample else ""
     data={'from':'{} <{}>'.format(campaign.from_name,campaign.from_address) if campaign.from_name else campaign.from_address,
           'to':to or doc.email_address,
           'subject':render(campaign.email_subject,context=context) + sample_text,
