@@ -99,6 +99,7 @@ tr.traceback {
             </tr>
 
         {{for ts in tasks:}}
+          {{if ts:}}
             <tr>
                 <td>{{=ts.scheduler_task.id}}</td>
                 <td>{{=ts.scheduler_task.group_name}}</td>
@@ -117,8 +118,9 @@ tr.traceback {
             </tr>
             <tr>
                 <td>{{=ts.scheduler_run.traceback}}</td>
-			</tr>
-				{{pass}}
+            </tr>
+            {{pass}}
+		{{pass}}
 
         {{pass}}
         </table>
