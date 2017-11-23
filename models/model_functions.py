@@ -8,7 +8,7 @@ import sys
 import inspect
 #import traceback
 import urllib2
-from urlparse import urlparse,parse_qs
+from urlparse import urlparse, parse_qs
 import hashlib, hmac
 
 import pyrax
@@ -19,12 +19,158 @@ import html2text   #sudo pip install html2text
 from gluon.storage import Storage
 from gluon.fileutils import abspath
 from gluon.template import render
-from os import path,mkdir,system,remove,walk,listdir
+from os import path, mkdir, system, remove, walk, listdir
 from email.utils import formatdate
 
 URL_KEY = myconf.get('dds.url_key')
 
 # -------------mailgun--------------
+def parse_RFC_3339_date(rfc3339_date): #returns datetime
+    import dateutil.parser
+    return dateutil.parser.parse(rfc3339_date) # RFC 3339 format ex. "2017-10-21T00:00:00Z"
+
+def UTC_datetime_to_epoch(dt):
+    epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+    return (dt-epoch).total_seconds()
+
+def datetime_to_epoch(dt):
+    epoch = datetime.datetime.fromtimestamp(0)
+    return (dt - epoch).total_seconds()
+
+def timestamp_to_dt(ts):
+    return datetime.datetime.fromtimestamp(ts)
+
+def RFC_3339_to_local_dt(rfc3339_date):
+    return timestamp_to_dt(UTC_datetime_to_epoch(parse_RFC_3339_date(rfc3339_date)))
+
+def past_timestamp(days):
+    return long(UTC_datetime_to_epoch(
+        (__midnight(datetime.datetime.utcnow()+datetime.timedelta(days=days)
+                   ).replace(tzinfo=pytz.utc))))
+
+def print_dict(d): # print dict human readable
+    print json.dumps(d, indent=4, sort_keys=True)
+
+def mg_api_request(endpoint, params=None):
+    """ endpoint: api endpoint ex. : /<domain>/tags
+        params: dict with params
+    """
+    return requests.get(
+        "https://api.mailgun.net/v3{}".format(endpoint),
+        auth=("api", myconf.get('mailgun.api_key')),
+        params=params
+        )
+
+def get_list_index(s, l):
+    if s in l:
+        return l.index(s)
+
+def get_ids(l, key):
+    return [i[key] for i in l]
+
+def update_stats_list(stats1, stats2): # stats1 & 2 are lists of dicts (mailgun stats)
+    lid1 = get_ids(stats1, 'time')
+    lid2 = get_ids(stats2, 'time')
+    for i, id_ in enumerate(lid2):
+        k = get_list_index(id_, lid1)
+        if  k != None:
+            stats1[k].update(stats2[i])
+        else:
+            stats1.append(stats2[i])
+    return stats1
+
+def mg_update_analitycs(campaign_id):
+    c = get_campaign(campaign_id)
+    tag = get_campaign_tag(c)
+    try:
+        r = mg_api_request('/{}/tags/{}'.format(c.mg_domain, tag))
+        r.raise_for_status()
+        data = r.json()
+        c.mg_first_seen = RFC_3339_to_local_dt(data['first-seen'])
+        c.mg_last_seen = RFC_3339_to_local_dt(data['last-seen'])
+        a = db.analitycs
+        for r in MG_ANALITYCS_RESOLUTION:
+            analitycs_record = db(((a.tag_ == tag)|(a.campaign == campaign_id))
+                                  & (a.resolution == r)
+                                 ).select(limitby=(0, 1)).first()
+            start_ = ''
+            if analitycs_record:
+                action = db(a.id == analitycs_record.id).validate_and_update #update
+                stats = analitycs_record.stats_
+                start_ = stats['start']
+            else:
+                action = a.insert
+                stats = dict()
+            #ts_29days_ago = long(time.time() - (29 * 24 * 60 * 60))
+            ts_past_limit = None
+            if r in ['hour', 'week']:
+                #one year for keek 30 days for hour stats
+                ts_past_limit = past_timestamp(-364) if r == 'week' else past_timestamp(-29)
+            start_ts = long(UTC_datetime_to_epoch(parse_RFC_3339_date(data['first-seen'])))
+            if ts_past_limit:
+                start_ts = start_ts if start_ts > ts_past_limit else ts_past_limit
+            res = mg_api_request("/{}/tags/{}/stats".format(c.mg_domain, tag),
+                                 params=dict(start=start_ts,
+                                             resolution=r,
+                                             event=MG_EVENT_TYPES))
+            if (res.status_code == 400) and (r == 'hour'): continue
+            res.raise_for_status()
+            rd = res.json().copy()
+            retrieved_stats = rd['stats'][:]
+            del rd['stats']
+            stats.update(rd)
+            stats['stats'] = update_stats_list(stats['stats'], retrieved_stats)
+            if start_:
+                stats['start'] = start_
+            fields = dict(
+                campaign=c.id,
+                tag_=rd['tag'],
+                start_=RFC_3339_to_local_dt(stats['start']),
+                end_=RFC_3339_to_local_dt(stats['end']),
+                description=stats['description'],
+                resolution=stats['resolution'],
+                stats_=json.dumps(stats) if analitycs_record else stats
+            )
+            result = action(**fields)
+            if result.errors:
+                db.rollback()
+                raise Exception(result.errors.as_json())
+            db.commit()
+        c.update_record()
+        db.commit()
+        return True
+    except:
+        db.rollback()
+        raise
+
+def daemon_retrieve_campaign_analitycs():
+    campaigns = db((db.campaign.id > 0) & (db.campaign.is_active == True)).select()
+    for c in campaigns:
+        tag = get_campaign_tag(c)
+        r = mg_api_request('/{}/tags/{}'.format(c.mg_domain, tag))
+        if r.status_code != 200:
+            continue
+        data = r.json()
+        r_last_seen_ts = UTC_datetime_to_epoch(parse_RFC_3339_date(data['last-seen']))
+        c_last_seen_ts = datetime_to_epoch(c.mg_last_seen) if c.mg_last_seen else None
+        if (r_last_seen_ts == c_last_seen_ts) and ((time.time() - r_last_seen_ts) > (24 * 60 * 60)):
+            continue
+        #print tag, c_last_seen_ts, r_last_seen_ts
+        #print_dict(data)
+        mg_update_analitycs(c.id)
+
+def sumarize_stats(stats_list, stats_keys):
+    result = dict((k, 0) for k in stats_keys)
+    for d in stats_list:
+        for k in stats_keys:
+            v = d
+            for kk in k.split('.'):
+                #if not v: break
+                v = v.get(kk, {})
+            if isinstance(v, int) or isinstance(v, long):
+                result[k] += v
+    return result
+
 def mg_get_domains():
     return requests.get(
         "https://api.mailgun.net/v3/domains",
@@ -36,7 +182,8 @@ def mg_get_campaigns(domain):
         "https://api.mailgun.net/v3/{}/campaigns".format(domain),
         auth=('api', myconf.get('mailgun.api_key')))
 
-def mg_update_local_campaign_stats(campaign_id): #update a campaign with the information retrieved from mailgun
+def mg_update_local_campaign_stats(campaign_id):
+    #update a campaign with the information retrieved from mailgun
     c = get_campaign(campaign_id)
     r1 = requests.get(
         "https://api.mailgun.net/v3/{}/campaigns/{}/stats".format(c.mg_domain,c.mg_campaign_id),
@@ -62,17 +209,17 @@ def get_events(domain, query_options):
 def get_events_page(url):
     r = requests.get(
             url,
-            auth=('api', myconf.get('mailgun.api_key')))
+            auth = ('api', myconf.get('mailgun.api_key')))
     r.raise_for_status()
     return r
 
-def task_evt_poll(domain,begin_ts,end_ts):
-    qopt= dict(begin= begin_ts,end=end_ts)
-    store_mg_events(get_events(domain,qopt))
+def task_evt_poll(domain, begin_ts, end_ts):
+    qopt = dict(begin = begin_ts, end = end_ts)
+    store_mg_events(get_events(domain, qopt))
 
 def get_latest_task_id(task_name):
     max = db.scheduler_task.id.max()
-    return db(db.scheduler_task.task_name== task_name).select(max).first()[max]
+    return db(db.scheduler_task.task_name == task_name).select(max).first()[max]
 
 def daemon_master_event_poll():
     now_ts = time.time()
@@ -215,7 +362,7 @@ def store_mg_event(event_dict): #store an event returned by mailgun example: eve
     mg_event['campaign']=doc.campaign
 #    struct_time=time.gmtime(e.timestamp)
 #    dt=datetime.datetime.fromtimestamp(time.mktime(struct_time))
-    dt=datetime.datetime.fromtimestamp(e.timestamp)
+    dt=timestamp_to_dt(e.timestamp)
     mg_event['event_timestamp_dt']=dt
 #    mg_event['event_local_dt']=dt
     mg_event['event_timestamp']=e.timestamp
@@ -235,7 +382,7 @@ def store_mg_event(event_dict): #store an event returned by mailgun example: eve
     mg_event['event_geolocation_city']=e.geolocation['city'] if e.geolocation else None
     mg_event['event_json']=event_dict
     r=db.mg_event.insert(**mg_event)
-    if e.event in [ 'accepted', 'rejected', 'delivered', 'failed', 'opened', 'clicked', 'unsubscribed', 'complained', 'stored' ]:
+    if e.event in MG_EVENT_TYPES:
         field=e.event + '_on'
         doc_field=get_latest_dt(dt,doc[field])
         if doc_field != doc[field]:
@@ -728,6 +875,9 @@ def process_mg_response(*args,**kwargs):
     return res.ok
 #   return ed_id
 
+def get_campaign_tag(campaign):
+    return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
+
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
     url_type = { 'Body Only': None , 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
@@ -744,14 +894,11 @@ def get_context(doc,campaign,rc):
             campaign_name = campaign.campaign_name,
             available_from = campaign.available_from,
             available_until = campaign.available_until,
-            mg_tags = campaign.mg_tags,
+            mg_tags = [get_campaign_tag(campaign)] + campaign.mg_tags[0:2],
             subject = campaign.email_subject)
     if campaign.logo:
         campaign_dict.update(dict(logo_src = 'cid:{}'.format(campaign.logo)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
-
-def get_campaign_tag(campaign):
-    return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
 
 def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath

@@ -56,12 +56,16 @@ def workers():
     sdb = db
     sw, st, sr = (sdb.scheduler_worker, sdb.scheduler_task,sdb.scheduler_run)
     workers = sdb.executesql("select substring_index(worker_name,'#',1) node,group_names,count(id) from scheduler_worker group by node,group_names order by node,group_names")
-    latest_task_id=get_latest_task_id('task_evt_poll')
+    max = db.scheduler_task.id.max()
+    latest_task_id = db((db.scheduler_task.task_name == 'task_evt_poll') & 
+                        ((db.scheduler_task.status == 'COMPLETED') | (db.scheduler_task.times_run > 0))
+                       ).select(max).first()[max]
+    #latest_task_id=get_latest_task_id('task_evt_poll')
     latest_task=scheduler.task_status(latest_task_id) if  latest_task_id else None
     events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
     events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
-    events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
-    events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
+    #events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
+    #events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
     count = sdb(sdb.scheduler_worker.id>0).count()
     ticker,tasks,completed_tasks = (None,None,None)
     if auth.has_membership(role = 'advanced_scheduler_viewer'):
@@ -272,6 +276,31 @@ def secure():
 def gone():
     raise HTTP(410)
 
+@auth.requires_login()
+def analitycs():
+    campaign_id=int(request.args[0])
+    c = get_campaign(campaign_id)
+    if not c: raise HTTP(404)
+    stats_keys = ['accepted.outgoing',
+                  'clicked.unique', 'clicked.total',
+                  'delivered.smtp',
+                  'failed.permanent.total',
+                  'opened.unique', 'opened.total',
+                  'unsubscribed.total']
+    a = db.analitycs
+    qry = ((a.campaign == campaign_id) & ( a.resolution == 'month'))
+    try:
+        #mg_update_analitycs(campaign_id)
+        pass
+    except:
+        raise HTTP(404)
+    stats = db(qry).select(limitby=(0,1)).first()
+    if not stats: raise HTTP(404)
+    return dict(stats =sumarize_stats(stats.stats_['stats'],stats_keys))
+        
+
+    
+    
 def user():
     """
     exposes:

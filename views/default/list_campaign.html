@@ -48,7 +48,13 @@
         {{=row.status_progress}}%
         {{pass}}
         </div></td>
-        <td>{{=row.total_campaign_recipients}}<br><span><a href={{=URL('list_docs',args=[row.id, 'none'])}}>{{=T('recipients')}}</a></span></td>
+        <td>{{=row.total_campaign_recipients}}<br><span><a href={{=URL('list_docs',args=[row.id, 'none'])}}>{{=T('recipients')}}</a></span>
+        <div>
+            {{if row.status in ['queueing', 'live', 'scheduled', 'finished' ]:}}
+                 <a href="{{=URL('analitycs',args=[row.id])}}" class="btn btn-success" target="_blank">{{=T('analitycs')}}</a>
+            {{pass}}
+        </div>
+        </td>
     <td>{{=row.container_objects}}</td>
     <td>{{=row.from_address}}</td>
     <td>{{=row.email_subject}}</td>

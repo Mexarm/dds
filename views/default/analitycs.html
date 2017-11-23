@@ -1,0 +1,42 @@
+{{extend 'layout.html'}}
+{{block head}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
+{{end}}
+<h3>
+    {{=T('Campaign analitycs')}}
+</h3>
+<div>{{=BEAUTIFY(stats)}}</div>
+<canvas id="deliveredChart_" width="100" height="100"></canvas>
+<canvas id="deliveredChart" style="display: block; width: 250px; height: 250px;"></canvas>
+<script>
+    window.onload = function() {
+        var ctx = document.getElementById("deliveredChart");
+        var accepted = {{=stats.get('accepted.outgoing',0)}};
+        var delivered = {{=stats.get('delivered.smtp',0)}};
+        var deliveredChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ["NotDelivered", "Delivered"],
+                datasets: [{
+                    
+                    data: [accepted-delivered, delivered],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)'
+                        
+                    ],
+                    borderColor: [
+                        'rgba(255,99,132,1)',
+                        'rgba(54, 162, 235, 1)'
+                        
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: false
+            }
+            
+        });
+    }
+        </script>

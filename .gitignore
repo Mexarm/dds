@@ -37,3 +37,4 @@ progress.log
 site-packages/
 logs/
 .pythonhistory
+.vscode/

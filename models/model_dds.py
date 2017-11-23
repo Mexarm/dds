@@ -5,12 +5,6 @@ import pickle
 import uuid
 from dateutil.tz import tzlocal
 import pytz
-#
-#http://ckeditor.com/ para la edicion del body online
-#https://www.tinymce.com/ otro
-#ticket error pyrax
-#https://172.20.1.105/admin/default/ticket/dds/172.20.1.231.2016-12-09.18-52-56.f0f57a04-acb2-4fce-9f7b-78204db83907
-#http://www.mail-tester.com/
 
 SERVICE_TYPE=['Body Only','Attachment','Cloudfiles Temp URL', 'DDS Server URL']
 
@@ -19,6 +13,9 @@ DOC_LOCAL_STATE_ERR = [ 'cf not valid','rejected (mailgun)' ]
 UUID_LENGTH = 36
 REQUIRED_FIELDS = ['record_id','object_name','email_address'] #required fields in the index.csv file
 OPTIONAL_FIELDS = ['deliverytime'] #optional fields in the index.csv file
+
+MG_ANALITYCS_RESOLUTION = [ 'hour', 'day', 'month']
+MG_EVENT_TYPES = [ 'accepted', 'delivered', 'failed', 'opened', 'clicked', 'unsubscribed', 'complained', 'stored' ] # rejected was removed
 
 #event poll params
 EP_TIME_SLICE = int(myconf.get('eventpoll.time_slice'))
@@ -35,13 +32,14 @@ WGRP_SENDERS1 = 'senders1'
 WGRP_POLLERS = 'pollers'
 WGRP_FINISHERS = 'finishers'
 
-DAEMON_TASKS = [ ('daemon_progress_tracking',20),
-                ('daemon_status_changer',25),
-                ('daemon_master_event_poll',EP_DAEMON_PERIOD),
-                ('daemon_reclaim_attach_storage',300),
-                ('daemon_event_poll_remove_old_tasks',86400)] # (task_name, period in seconds)
+DAEMON_TASKS = [ ('daemon_progress_tracking', 20),
+                ('daemon_status_changer', 25),
+                ('daemon_master_event_poll', EP_DAEMON_PERIOD),
+                ('daemon_reclaim_attach_storage', 300),
+                ('daemon_event_poll_remove_old_tasks', 86400),
+                ('daemon_retrieve_campaign_analitycs', 86400)] # (task_name, period in seconds)
 
-MIDNIGHT_TASKS = ['daemon_event_poll_remove_old_tasks']
+MIDNIGHT_TASKS = ['daemon_event_poll_remove_old_tasks','daemon_retrieve_campaign_analitycs']
 
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -117,8 +115,20 @@ db.define_table('campaign',
                 Field('fm_history','list:string', default=[],writable=False,readable=False),
                 Field('mg_stats','json',default='{}',readable=False,writable=False),
                 Field('mg_stats_unique','json',default='{}',readable=False,writable=False),
+                Field('mg_first_seen','datetime'),
+                Field('mg_last_seen','datetime'),
                 Field('send_tasks_stats','json',readable=False,writable=False),
                 Field('send_retry_active','boolean',readable=False,writable=False),
+                auth.signature)
+
+db.define_table('analitycs',
+                Field('campaign', 'reference campaign'),
+                Field('tag_'),
+                Field('start_','datetime'),
+                Field('end_','datetime'),
+                Field('description'),
+                Field('resolution',requires = IS_IN_SET(MG_ANALITYCS_RESOLUTION)),
+                Field('stats_','json', default = '{}'),
                 auth.signature)
 
 db.define_table('doc', Field('campaign','reference campaign'),
@@ -141,7 +151,7 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('send_retry_active','boolean'),
                 Field('mailgun_id','string'),
                 Field('accepted_on','datetime',writable=False), #analitycs fields
-                Field('rejected_on','datetime',writable=False),
+                Field('rejected_on','datetime',writable=False), 
                 Field('delivered_on','datetime',writable=False),
                 Field('failed_on','datetime',writable=False),
                 Field('opened_on','datetime',writable=False),
