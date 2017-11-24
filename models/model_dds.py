@@ -32,14 +32,14 @@ WGRP_SENDERS1 = 'senders1'
 WGRP_POLLERS = 'pollers'
 WGRP_FINISHERS = 'finishers'
 
-DAEMON_TASKS = [ ('daemon_progress_tracking', 20),
+DAEMON_TASKS = [('daemon_progress_tracking', 20),
                 ('daemon_status_changer', 25),
                 ('daemon_master_event_poll', EP_DAEMON_PERIOD),
                 ('daemon_reclaim_attach_storage', 300),
                 ('daemon_event_poll_remove_old_tasks', 86400),
                 ('daemon_retrieve_campaign_analitycs', 86400)] # (task_name, period in seconds)
 
-MIDNIGHT_TASKS = ['daemon_event_poll_remove_old_tasks','daemon_retrieve_campaign_analitycs']
+MIDNIGHT_TASKS = ['daemon_event_poll_remove_old_tasks', 'daemon_retrieve_campaign_analitycs']
 
 DEFAULT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -60,15 +60,27 @@ def compute_acceptance_time(dt):
 #def local_dt(utc_dt):
 #        return utc_dt.replace(tzinfo=pytz.utc).astimezone(tzlocal()).replace(tzinfo=None)
 
-
-def mysql_add_index(table,column):
-    if (db._uri[:5] == 'mysql'):
-        params=dict(table=table,column=column,idx_name='{}__idx'.format(column))
-        result=db.executesql("SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='{table}' AND index_name='{idx_name}';".format(**params)) #returns ((1L,),) if the index exists
+def mysql_add_index(table, column):
+    if db._uri[:5] == 'mysql':
+        params = dict(table=table, column=column, idx_name='{}__idx'.format(column))
+        qry = r"SELECT COUNT(1) IndexIsThere " \
+              "FROM INFORMATION_SCHEMA.STATISTICS " \
+              "WHERE table_schema=DATABASE() " \
+              "AND table_name='{table}' " \
+              "AND index_name='{idx_name}';"
+        result = db.executesql(qry.format(**params))
+                                        #returns ((1L,),) if the index exists
         if not result[0][0]:
-            return db.executesql("ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
+            return db.executesql(
+                "ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
+
 def advanced_editor(field, value):
-    return TEXTAREA(_id = str(field).replace('.','_'), _name=field.name, _class='text ckeditor', value=value, _cols=80, _rows=10)
+    return TEXTAREA(_id = str(field).replace('.','_'), 
+                    _name=field.name, 
+                    _class='text ckeditor', 
+                    value=value, 
+                    _cols=80, 
+                    _rows=10)
 
 db.define_table('campaign',
                 Field('uuid','string',default=uuid.uuid4(), label='Campaign UUID', writable=False,readable=False),
@@ -150,6 +162,7 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('status','string'),
                 Field('send_retry_active','boolean'),
                 Field('mailgun_id','string'),
+                Field('doc_uuid','string',default=uuid.uuid4(), label='Doc UUID', writable=False,readable=False),
                 Field('accepted_on','datetime',writable=False), #analitycs fields
                 Field('rejected_on','datetime',writable=False), 
                 Field('delivered_on','datetime',writable=False),
@@ -163,6 +176,7 @@ mysql_add_index('doc','mailgun_id')
 mysql_add_index('doc','status')
 mysql_add_index('doc','object_name')
 mysql_add_index('doc','osequence')
+mysql_add_index('doc','doc_uuid')
 db.doc.deliverytime.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
 db.doc.accepted_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
 db.doc.rejected_on.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
@@ -229,4 +243,4 @@ mysql_add_index('mg_event','webhook_token')
 db.mg_event.event_timestamp_dt.represent = lambda value,row: value.strftime(DEFAULT_DATETIME_FORMAT) if value else ''
 
 if not auth.db(auth.db.auth_group.role == 'advanced_scheduler_viewer').count():
-    auth.add_group('advanced_scheduler_viewer', 'Users that can view more scheduler datails')
+    auth.add_group('advanced_scheduler_viewer', 'Users that can view more scheduler details')

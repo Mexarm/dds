@@ -69,13 +69,14 @@ def workers():
     count = sdb(sdb.scheduler_worker.id>0).count()
     ticker,tasks,completed_tasks = (None,None,None)
     if auth.has_membership(role = 'advanced_scheduler_viewer'):
-        ticker = sdb(sw.is_ticker == True).select(sw.worker_stats).first()
+        ticker = sdb(sw.is_ticker == True).select().first()
+        workers_rows = sdb(sw.id>0).select()
         tasks = sdb(st.status != 'COMPLETED').select(st.id,st.application_name,st.task_name,st.status,
                                             st.group_name,st.args,st.vars,st.start_time,
                                             st.times_run,st.times_failed,st.last_run_time,
                                             st.next_run_time,st.assigned_worker_name,
                                             limitby=(0,500),
-                                            orderby=(st.status,~st.last_run_time))
+                                            orderby=(~st.last_run_time,st.status))
         completed_tasks = sdb(st.status=='COMPLETED').select(st.id,st.application_name,st.task_name,st.status,
                                             st.group_name,st.args,st.vars,st.start_time,
                                             st.times_run,st.times_failed,st.last_run_time,
@@ -86,7 +87,8 @@ def workers():
             events_horizont = dict (dt = events_horizont_dt, 
                                     ts = events_horizont_ts,
                                     pd = prettydate(events_horizont_dt)
-                                   )
+                                   ),
+            workers_rows = workers_rows
                 )
 
 def webhook():
@@ -260,10 +262,13 @@ def create_campaign():
 def secure():
     #https://github.com/mozilla/pdf.js/blob/master/README.md
     if not URL.verify(request, hmac_key=URL_KEY): raise HTTP(403) #403 Forbidden	The request was a legal request, but the server is refusing to respond to it
-    id = request.vars.id
+    #id = request.vars.id
     rcode = request.vars.rcode
-    r = db.retrieve_code(id)
-    if r.rcode == rcode:
+    if not rcode: raise HTTP(403)
+    #r = db.retrieve_code(id)
+    r = db(db.retrieve_code.rcode == rcode).select(limitby=(0,1)).first()
+    if r:
+    #if r.rcode == rcode:
         from datetime import datetime
         if r.available_until > datetime.now():
             redirect(r.temp_url, client_side=True)
@@ -273,8 +278,27 @@ def secure():
         raise HTTP(403) #403 Forbidden	The request was a legal request, but the server is refusing to respond to it
     #redirect(..., client_side=True)
 
-def gone():
-    raise HTTP(410)
+#def gone():
+#    raise HTTP(410)
+
+@cache.action()
+def view():
+    if not URL.verify(request, hmac_key=URL_KEY): raise HTTP(403) #403 Forbidden	The request was a legal request, but the server is refusing to respond to it
+    doc_id = request.vars.docid
+    if not doc_id: raise HTTP(403)
+    doc = db(db.doc.doc_uuid == doc_id).select(limitby=(0,1)).first()
+    if doc:
+        campaign = get_campaign(doc.campaign)
+        from datetime import datetime
+        if campaign.available_until > datetime.now():
+            rc = get_rcode(doc.rcode,doc.campaign)
+            context=get_context(doc,campaign,rc)
+            html_body = render(campaign.html_body,context=context)
+            return html_body
+        else:
+            raise HTTP(410) #410 Gone	The requested page is no longer available
+    else:
+        raise HTTP(403) #403 Forbidden	The request was a legal request, but the server is refusing to respond to it
 
 @auth.requires_login()
 def analitycs():
@@ -290,7 +314,7 @@ def analitycs():
     a = db.analitycs
     qry = ((a.campaign == campaign_id) & ( a.resolution == 'month'))
     try:
-        #mg_update_analitycs(campaign_id)
+        mg_update_analitycs(campaign_id)
         pass
     except:
         raise HTTP(404)

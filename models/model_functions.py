@@ -878,6 +878,11 @@ def process_mg_response(*args,**kwargs):
 def get_campaign_tag(campaign):
     return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
 
+def get_doc_view_url(docid):
+    #docid is the uuid of the doc
+    server = myconf.get('host.server')
+    return URL('view',vars=dict( docid = docid ),scheme='https', host=server,hmac_key=URL_KEY)
+    
 def get_context(doc,campaign,rc):
     #rc = retrieve code row
     url_type = { 'Body Only': None , 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
@@ -885,7 +890,9 @@ def get_context(doc,campaign,rc):
             object_name = doc.object_name,
             email_address = doc.email_address
             )
-    if url_type: data['url']=rc[url_type]
+    #if url_type: data['url']=rc[url_type]
+    if url_type: data['object_url']=rc[url_type]
+    if doc.doc_uuid: data['message_view_url'] = get_doc_view_url(doc.doc_uuid)
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
             uuid = campaign.uuid,

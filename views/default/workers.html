@@ -38,10 +38,18 @@
     Ticker Stats
 </h3>
 <div>
-    {{=BEAUTIFY(ticker.worker_stats)}}
+    {{=BEAUTIFY(ticker)}}
 </div>
 {{pass}}
 
+{{if workers_rows:}}
+<h3>
+        Worker Tasks
+    </h3>
+    <div>
+        {{=BEAUTIFY(workers_rows)}}
+    </div>
+{{pass}}
 {{if tasks:}}
 <hr>
 <h3>

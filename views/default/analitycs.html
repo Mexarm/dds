@@ -1,42 +1,157 @@
-{{extend 'layout.html'}}
+{{extend 'layout.html'}} 
 {{block head}}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.1/Chart.min.js"></script> 
+<style>
+    .chart-container {
+    box-sizing: border-box;
+    padding: 0 10px 10px;
+}
+
+    .chart-widget {
+     display: block;
+     position: relative; 
+     height:20vh; 
+     width:80vw
+}
+</style>
 {{end}}
-<h3>
-    {{=T('Campaign analitycs')}}
+<h3 class="page-header">
+    {{=T('Primary Statistics')}}
 </h3>
-<div>{{=BEAUTIFY(stats)}}</div>
-<canvas id="deliveredChart_" width="100" height="100"></canvas>
-<canvas id="deliveredChart" style="display: block; width: 250px; height: 250px;"></canvas>
-<script>
-    window.onload = function() {
-        var ctx = document.getElementById("deliveredChart");
-        var accepted = {{=stats.get('accepted.outgoing',0)}};
-        var delivered = {{=stats.get('delivered.smtp',0)}};
-        var deliveredChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ["NotDelivered", "Delivered"],
-                datasets: [{
-                    
-                    data: [accepted-delivered, delivered],
-                    backgroundColor: [
-                        'rgba(255, 99, 132, 0.2)',
-                        'rgba(54, 162, 235, 0.2)'
-                        
-                    ],
-                    borderColor: [
-                        'rgba(255,99,132,1)',
-                        'rgba(54, 162, 235, 1)'
-                        
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: false
-            }
+
+<div class="row placeholders">
+    <div class="col-xs-6 col-sm-3 placeholder">
             
-        });
+                <div class="chart-container">
+                    <canvas id="deliveredChart"></canvas>
+                </div>
+
+                <center>
+                    <h3 style="display: relative; color: rgb(96, 189, 104); margin-top: 0px; margin-bottom: 0px;">
+                        {{=stats.get('delivered.smtp','-')}}
+                    </h3>
+                    <b>Delivered</b>
+                </center>
+            
+    </div>
+
+    <div class="col-xs-6 col-sm-3 placeholder">
+            
+                <div class="chart-container">
+                    <canvas id="openedChart"></canvas>
+                </div>
+
+                <center>
+                    <h3 style="display: relative; color: #40BFAA; margin-top: 0px; margin-bottom: 0px;">
+                        {{=stats.get('opened.unique','-')}}
+                    </h3>
+                    <b>Unique Opens</b>
+                </center>
+            
+    </div>
+
+    <div class="col-xs-6 col-sm-3 placeholder">
+            
+                <div class="chart-container">
+                    <canvas id="clickedChart"></canvas>
+                </div>
+
+                <center>
+                    <h3 style="display: relative; color: #428bca; margin-top: 0px; margin-bottom: 0px;">
+                        {{=stats.get('clicked.unique','-')}}
+                    </h3>
+                    <b>Unique Clicks</b>
+                </center>
+            
+    </div>
+
+    <div class="col-xs-6 col-sm-3 placeholder">
+            <div>{{=BEAUTIFY(stats)}}</div>
+    </div>
+</div>
+
+<script>
+    window.onload = function () {
+        var ctx = document.getElementById("deliveredChart");
+        var accepted = {{=stats.get('accepted.outgoing', 0)}};
+        var delivered = {{=stats.get('delivered.smtp', 0)}};
+        var deliveredChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ["Delivered", "In Transit or Failed"],
+            datasets: [{
+
+                data: [delivered, accepted - delivered],
+                backgroundColor: [
+                    '#60BD68',
+                    '#D3D3D3'
+
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            legend: {
+                display: false
+            }
+
+        }
+
+    });
+        
+        var ctx = document.getElementById("openedChart");
+        var accepted = {{=stats.get('delivered.smtp', 0)}};
+        var opened = {{=stats.get('opened.unique', 0)}};
+        var deliveredChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ["Unique Opens", ""],
+            datasets: [{
+
+                data: [opened, accepted - opened],
+                backgroundColor: [
+                    '#40BFAA',
+                    '#D3D3D3'
+
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            legend: {
+                display: false
+            }
+
+        }
+
+    });
+
+    var ctx = document.getElementById("clickedChart");
+        var accepted = {{=stats.get('delivered.smtp', 0)}};
+        var opened = {{=stats.get('clicked.unique', 0)}};
+        var deliveredChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ["Unique Clicks", ""],
+            datasets: [{
+
+                data: [opened, accepted - opened],
+                backgroundColor: [
+                    '#428bca',
+                    '#D3D3D3'
+
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            legend: {
+                display: false
+            }
+
+        }
+
+    });
+
     }
-        </script>
+</script>
