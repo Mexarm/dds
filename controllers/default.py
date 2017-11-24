@@ -67,7 +67,7 @@ def workers():
     #events_horizont_ts = json.loads(latest_task.args)[2] if latest_task else None
     #events_horizont_dt = datetime.datetime.fromtimestamp(events_horizont_ts) if events_horizont_ts else None
     count = sdb(sdb.scheduler_worker.id>0).count()
-    ticker,tasks,completed_tasks = (None,None,None)
+    ticker,tasks,completed_tasks,workers_rows = (None,None,None,None)
     if auth.has_membership(role = 'advanced_scheduler_viewer'):
         ticker = sdb(sw.is_ticker == True).select().first()
         workers_rows = sdb(sw.id>0).select()
