@@ -315,7 +315,6 @@ def analitycs():
     qry = ((a.campaign == campaign_id) & ( a.resolution == 'month'))
     try:
         mg_update_analitycs(campaign_id)
-        pass
     except:
         raise HTTP(404)
     stats = db(qry).select(limitby=(0,1)).first()

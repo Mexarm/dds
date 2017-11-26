@@ -59,6 +59,19 @@ def compute_acceptance_time(dt):
 
 #def local_dt(utc_dt):
 #        return utc_dt.replace(tzinfo=pytz.utc).astimezone(tzlocal()).replace(tzinfo=None)
+class IS_EMAIL_LIST(object):
+    def __init__(self, error_message="Email %s is invalid", sep=","):
+        self.error_message = error_message
+        self.sep = sep
+
+    def __call__(self, value):
+        emails = value.strip().replace('\n', '').replace('\t', '').split(self.sep)
+        emails = [e.strip() for e in emails]
+        for email in emails:
+            email = email.strip()
+            if IS_EMAIL()(email)[1] != None:
+                return (email, self.error_message % email)
+        return (self.sep.join(emails), None)
 
 def mysql_add_index(table, column):
     if db._uri[:5] == 'mysql':
@@ -83,7 +96,7 @@ def advanced_editor(field, value):
                     _rows=10)
 
 db.define_table('campaign',
-                Field('uuid','string',default=uuid.uuid4(), label='Campaign UUID', writable=False,readable=False),
+                Field('uuid', 'string',default=uuid.uuid4(), label='Campaign UUID', writable=False, readable=False),
                 Field('mg_domain','string',label = 'Mailgun Domain'),
                 Field('campaign_name','string',notnull=True,label=T('Campaign Name'),
                      requires=[IS_NOT_EMPTY(),IS_NOT_IN_DB(db, 'campaign.campaign_name')]),
@@ -116,7 +129,7 @@ db.define_table('campaign',
                 Field('maximum_bandwith', 'integer',notnull=True,default=0), #limit the maximum bandwith to consume in bytes, 0= no limit, only valid when service type is DDS Server URL
                 Field('from_name','string',label='From address name',default='Notifications (No Reply)'),
                 Field('from_address','string',requires = IS_EMAIL(), label = 'From email address'),
-                Field('test_address','string',requires = IS_EMAIL(), label = 'email address to sent tests' ),
+                Field('test_address','string',requires = IS_EMAIL_LIST(), label = 'email address to sent tests' ),
                 Field('email_subject','string',notnull=True, default=T('Your Document is Ready'),label=T('email subject')),
                 Field('html_body','text',notnull=True, default=''),
                 Field('BF_json','json',readable=False,writable=False),
@@ -127,8 +140,8 @@ db.define_table('campaign',
                 Field('fm_history','list:string', default=[],writable=False,readable=False),
                 Field('mg_stats','json',default='{}',readable=False,writable=False),
                 Field('mg_stats_unique','json',default='{}',readable=False,writable=False),
-                Field('mg_first_seen','datetime'),
-                Field('mg_last_seen','datetime'),
+                Field('mg_first_seen','datetime',readable=False,writable=False),
+                Field('mg_last_seen','datetime',readable=False,writable=False),
                 Field('send_tasks_stats','json',readable=False,writable=False),
                 Field('send_retry_active','boolean',readable=False,writable=False),
                 auth.signature)
@@ -142,6 +155,9 @@ db.define_table('analitycs',
                 Field('resolution',requires = IS_IN_SET(MG_ANALITYCS_RESOLUTION)),
                 Field('stats_','json', default = '{}'),
                 auth.signature)
+mysql_add_index('analitycs','campaign')
+mysql_add_index('analitycs','tag_')
+mysql_add_index('analitycs','resolution')
 
 db.define_table('doc', Field('campaign','reference campaign'),
                 Field('osequence','integer',notnull=True,label='original sequence'), #original sequence

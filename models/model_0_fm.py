@@ -11,40 +11,40 @@ def validate_documents(campaign_id):
     db(db.event_data.campaign == campaign_id).delete()
     reset_campaign_progress(campaign_id)
     db.commit()
-    campaign=get_campaign(campaign_id)
+    campaign = get_campaign(campaign_id)
     ret = scheduler.queue_task(register_on_db,
-            pvars=dict(campaign_id=campaign_id),
-            timeout=86400, # 1 day
-            sync_output=300)
+                               pvars=dict(campaign_id=campaign_id),
+                               timeout=86400, # 1 day
+                               sync_output=300)
     tasks = campaign.tasks
-    tasks =  tasks + [ret.id] if tasks else [ret.id]
-    db(db.campaign.id==campaign_id).update(tasks=tasks)
+    tasks = tasks + [ret.id] if tasks else [ret.id]
+    db(db.campaign.id == campaign_id).update(tasks=tasks)
 
 def send_test(campaign_id):
-    campaign=get_campaign(campaign_id)
-    first_doc = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).select(limitby=(0,1))
-    sample_set = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated') & (db.doc.is_sample == True)).select(db.doc.id,limitby=(0,myconf.get('dds.max_samples')))
+    campaign = get_campaign(campaign_id)
+    first_doc = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')
+                  ).select(limitby=(0, 1))
+    sample_set = db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated') &
+                    (db.doc.is_sample == True)
+                   ).select(db.doc.id, limitby=(0, myconf.get('dds.max_samples')))
     tasks = campaign.tasks or []
-    for doc in sample_set or first_doc: 
+    for doc in sample_set or first_doc:
         tasks.append(
             scheduler.queue_task(send_doc_wrapper,
-                pargs=[doc.id],
-                pvars=dict(to=campaign.test_address,
-                #mg_campaign_id = myconf.get('mailgun.test_only_campaign_id'),
-                is_sample=True,
-                update_doc=False,
-                ignore_delivery_time=True),
-                immediate=True,
-                group_name=WGRP_SENDERS1).id
-            )
-    db(db.campaign.id==campaign_id).update(tasks=tasks)
-    #db.commit()
+                                 pargs=[doc.id],
+                                 pvars=dict(to=campaign.test_address.split(','),
+                                            is_sample=True,
+                                            update_doc=False,
+                                            ignore_delivery_time=True),
+                                 immediate=True,
+                                 group_name=WGRP_SENDERS1).id)
+    db(db.campaign.id == campaign_id).update(tasks=tasks)
 
 def launch_campaign(campaign_id):
     campaign = db.campaign(campaign_id)
     period = myconf.get('retry.period')
-    retry_failed = myconf.get ('retry.retry_failed')
-    timeout = myconf.get ('retry.mailgun_timeout')
+    retry_failed = myconf.get('retry.retry_failed')
+    timeout = myconf.get('retry.mailgun_timeout')
     i = myconf.get('task.load')
     if campaign.mg_acceptance_time  > datetime.datetime.now():
         raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
@@ -66,9 +66,9 @@ def schedule_launch_campaign(campaign_id):
     c = get_campaign(campaign_id)
     reset_campaign_progress(campaign_id)
     task = scheduler.queue_task(launch_campaign,
-            pargs=[campaign_id],
-            start_time=c.mg_acceptance_time,
-            next_run_time=c.mg_acceptance_time)
+                                pargs=[campaign_id],
+                                start_time=c.mg_acceptance_time,
+                                next_run_time=c.mg_acceptance_time)
     c.tasks = c.tasks + [task.id] if c.tasks else [task.id]
     r = c.update_record()
     return task
@@ -78,8 +78,8 @@ def finished_campaign(campaign_id):
     c = get_campaign(campaign_id)
     if c.delete_documents_on_expire:
         task = scheduler.queue_task(delete_files,
-            pargs=[campaign_id],
-            group_name=WGRP_FINISHERS)
+                                    pargs=[campaign_id],
+                                    group_name=WGRP_FINISHERS)
         c.tasks = c.tasks + [task.id] if c.tasks else [task.id]
         r = c.update_record()
         return task
@@ -105,7 +105,7 @@ FM.add_state('approved')
 FM.add_state('queueing')
 FM.add_state('live')
 FM.add_state('scheduled')
-FM.add_state('finished',terminal=True)
+FM.add_state('finished', terminal=True)
 
 FM.add_transition('defined','validating documents','validate documents')
 FM.add_transition('validating documents','documents ready','_valid docs')

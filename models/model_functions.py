@@ -119,7 +119,10 @@ def mg_update_analitycs(campaign_id):
             retrieved_stats = rd['stats'][:]
             del rd['stats']
             stats.update(rd)
-            stats['stats'] = update_stats_list(stats['stats'], retrieved_stats)
+            if 'stats' in stats:
+                stats['stats'] = update_stats_list(stats['stats'], retrieved_stats)
+            else:
+                stats['stats'] = retrieved_stats
             if start_:
                 stats['start'] = start_
             fields = dict(
@@ -186,7 +189,7 @@ def mg_update_local_campaign_stats(campaign_id):
     #update a campaign with the information retrieved from mailgun
     c = get_campaign(campaign_id)
     r1 = requests.get(
-        "https://api.mailgun.net/v3/{}/campaigns/{}/stats".format(c.mg_domain,c.mg_campaign_id),
+        "https://api.mailgun.net/v3/{}/campaigns/{}/stats".format(c.mg_domain, c.mg_campaign_id),
         auth=('api', myconf.get('mailgun.api_key')))
     r2 = requests.get(
         "https://api.mailgun.net/v3/{}/campaigns/{}".format(c.mg_domain,c.mg_campaign_id), # juntar la info de ambos o ponerla en 2 campos diferentes
@@ -642,7 +645,7 @@ def register_on_db(campaign_id):
         #hdr=handle.next() # read header (first line) strip \n
         #hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
         hdr_list=csv_reader.next() #
-        if not set(REQUIRED_FIELDS) < set(hdr_list):
+        if not set(REQUIRED_FIELDS) <= set(hdr_list):
             raise ValueError('required fields "{}" are not present in file {}/{}/{}'.format(','.join(REQUIRED_FIELDS),container,prefix,index_file))
         db.doc.campaign.default=campaign_id
         n=0
@@ -824,16 +827,31 @@ def save_image(campaign_logo):
 def send_doc_wrapper(*args,**kwargs):
     #return errors about the rendering of the subject or view, if any
     sd_kwargs = { k : kwargs[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in kwargs}
-    try:
-        return process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
-    except (NameError,requests.exceptions.RequestException)  as e:
-        event_data(doc=args[0],category='error',
-                event_type='send_doc',
-                event_data='error:{}'.format(e.message),
-                event_json=kwargs)
-        db.commit()
-        if isinstance(e,requests.exceptions.RequestException):
+    last_exc_msg = ''
+    x = 0
+    while x < 10:
+        try:
+            print "x={}".format(x)
+            r = process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
+            return r
+            break
+        except NameError  as e:
+            event_data(doc=args[0], category='error',
+                           event_type='send_doc',
+                           event_data='error:{}'.format(e.message),
+                           event_json=kwargs)
+            db.commit()
             raise
+        except IOError as e:
+        #requests.exceptions.ConnectionError
+            print "sleeping 0.5..."
+            last_exc_msg = e.message
+            time.sleep(0.5)
+            print "waking up..."
+        x += 1
+        print "increasing x.."
+    raise IOError("Error sending doc.id = {} after {} retries (see event_data table)".format(args[0],x))
+    
 
 def process_mg_response(*args,**kwargs):
     #    Mailgun returns standard HTTP response codes.
@@ -847,7 +865,6 @@ def process_mg_response(*args,**kwargs):
     #500, 502, 503, 504	Server Errors - something is wrong on Mailgun’s end
     res=args[0]
     doc_id=args[1]
-
     doc=get_doc(doc_id) #response, doc_id
     category='error'
     if res.status_code == 200:
@@ -856,7 +873,6 @@ def process_mg_response(*args,**kwargs):
         category = 'info'
     else:
         doc.status=DOC_LOCAL_STATE_ERR[1]
-
     doc.mailgun_id=res.json()['id'].strip('<').strip('>') if 'id' in res.json() else None
     update_doc=True
     if 'update_doc' in kwargs:
@@ -864,16 +880,18 @@ def process_mg_response(*args,**kwargs):
             update_doc=False
     if update_doc: 
         doc.update_record()
-#    ed_id = event_data(doc=doc.id,category=category,
-#                event_type='send_doc',
-#                event_data='{}'.format(res.reason),
-#                event_json=res.json(),
-#                response_status_code=res.status_code)
         db.commit()
+    # if category == 'error':
+    #     event_data(doc=doc.id, category=category,
+    #                        event_type='send_doc',
+    #                        event_data=res.reason,
+    #                        event_json=dict(response=res.text),
+    #                        response_status_code=res.status_code)
+    #     db.commit()
     if res.status_code in [400,401,402,404,500,502,503,504]:
-        raise Exception('Mailgun returned status code = {}'.format(res.status_code))
-    return res.ok
-#   return ed_id
+        raise IOError(
+            'requests: mailgun returned status code = {} (see event_data)'.format(res.status_code))
+    return dict(status_code=res.status_code,reason=res.reason,msg=res.text)
 
 def get_campaign_tag(campaign):
     return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
@@ -909,16 +927,15 @@ def get_context(doc,campaign,rc):
 
 def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
-
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.rcode,doc.campaign)
     files=[]
     if campaign.logo:
-        logofile = path.join(abspath(request.folder),'logos/',campaign.logo)
+        logofile = path.join(abspath(request.folder),'logos',campaign.logo)
         if not path.isfile(logofile):
             save_image(campaign.logo)
-        files.append(("inline",open(logofile)))
+        files.append(("inline",open(logofile,'rb')))
     context=get_context(doc,campaign,rc)
     html_body = render(campaign.html_body,context=context)
     sample_text = "[sample c={},d={},r={}]".format(campaign.id,doc.id,doc.record_id) if is_sample else ""
