@@ -143,8 +143,11 @@ def select_mg_domain():
     dflt_domain = myconf.get('mailgun.default_domain')
     #zero = dftl_domain if dflt_domain  in domains else None
     form=FORM('mailgun domain:',
-              SELECT(_name='mg_domain',_class='selectpicker',*domains ),
-              INPUT(_type='submit',_label='OK'))
+              DIV(SELECT(_name='mg_domain',_class='selectpicker',*domains ),
+              INPUT(_type='submit',_value=T('Next'))),
+              DIV(BR(),SPAN(T('Only Active domains with open, click and unsubscribed tracking set to "On" \
+                               will appear here (mailgun domain settings)'),
+              _class = "label label-info" )))
     if form.accepts(request,session):
         session.mg_domain = form.vars.mg_domain
         redirect(URL('create_campaign'))

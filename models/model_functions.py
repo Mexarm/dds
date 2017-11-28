@@ -280,11 +280,22 @@ def split_uri(uri):
 def get_credentials_storage():
     return Storage({'username': myconf.get('rackspace.username'), 'api_key':myconf.get('rackspace.api_key') , 'region': myconf.get('rackspace.region') })
 
+def dict_getv(d,keys, default=None):
+    k = keys.split('.')
+    v=d
+    for j in k:
+        v = v.get(j,None)
+    return v
+
 def active_domains_list(res): #takes the mail gun request.response object and built a list of domains.
     l=list()
     res_dict=res.json()
     for d in res_dict['items']:
-        if d['state']=='active' and d['type'] != 'sandbox':
+        r = mg_api_request('/domains/{}/tracking'.format(d['name']),dict(auth = myconf.get('mailgun.api_key'))).json()
+        if (d['state']=='active') and d['type'] != 'sandbox'and \
+                                  dict_getv(r,'tracking.click.active') and \
+                                  dict_getv(r,'tracking.open.active') and \
+                                  dict_getv(r,'tracking.unsubscribe.active'):
             l.append(d['name'])
     return l
 
