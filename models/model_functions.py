@@ -838,31 +838,16 @@ def save_image(campaign_logo):
 def send_doc_wrapper(*args,**kwargs):
     #return errors about the rendering of the subject or view, if any
     sd_kwargs = { k : kwargs[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in kwargs}
-    last_exc_msg = ''
-    x = 0
-    while x < 10:
-        try:
-            print "x={}".format(x)
-            r = process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
-            return r
-            break
-        except NameError  as e:
-            event_data(doc=args[0], category='error',
-                           event_type='send_doc',
-                           event_data='error:{}'.format(e.message),
-                           event_json=kwargs)
-            db.commit()
+    try:
+        return process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
+    except (NameError,requests.exceptions.RequestException)  as e:
+        event_data(doc=args[0],category='error',
+                event_type='send_doc',
+                event_data='error:{}'.format(e.message),
+                event_json=kwargs)
+        db.commit()
+        if isinstance(e,requests.exceptions.RequestException):
             raise
-        except IOError as e:
-        #requests.exceptions.ConnectionError
-            print "sleeping 0.5..."
-            last_exc_msg = e.message
-            time.sleep(0.5)
-            print "waking up..."
-        x += 1
-        print "increasing x.."
-    raise IOError("Error sending doc.id = {} after {} retries (see event_data table)".format(args[0],x))
-    
 
 def process_mg_response(*args,**kwargs):
     #    Mailgun returns standard HTTP response codes.
@@ -876,6 +861,7 @@ def process_mg_response(*args,**kwargs):
     #500, 502, 503, 504	Server Errors - something is wrong on Mailgun’s end
     res=args[0]
     doc_id=args[1]
+
     doc=get_doc(doc_id) #response, doc_id
     category='error'
     if res.status_code == 200:
@@ -884,6 +870,7 @@ def process_mg_response(*args,**kwargs):
         category = 'info'
     else:
         doc.status=DOC_LOCAL_STATE_ERR[1]
+
     doc.mailgun_id=res.json()['id'].strip('<').strip('>') if 'id' in res.json() else None
     update_doc=True
     if 'update_doc' in kwargs:
@@ -891,18 +878,16 @@ def process_mg_response(*args,**kwargs):
             update_doc=False
     if update_doc: 
         doc.update_record()
+#    ed_id = event_data(doc=doc.id,category=category,
+#                event_type='send_doc',
+#                event_data='{}'.format(res.reason),
+#                event_json=res.json(),
+#                response_status_code=res.status_code)
         db.commit()
-    # if category == 'error':
-    #     event_data(doc=doc.id, category=category,
-    #                        event_type='send_doc',
-    #                        event_data=res.reason,
-    #                        event_json=dict(response=res.text),
-    #                        response_status_code=res.status_code)
-    #     db.commit()
     if res.status_code in [400,401,402,404,500,502,503,504]:
-        raise IOError(
-            'requests: mailgun returned status code = {} (see event_data)'.format(res.status_code))
-    return dict(status_code=res.status_code,reason=res.reason,msg=res.text)
+        raise Exception('Mailgun returned status code = {}'.format(res.status_code))
+    return res.ok
+#   return ed_id
 
 def get_campaign_tag(campaign):
     return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
