@@ -778,11 +778,16 @@ def cf_validate_doc_set2(campaign_id,objs):
     t3= time.time()
     return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(objs),insert=t3-t2))
 
+def domain_is_active(domain):
+    r = mg_api_request('/domains/{}'.format(domain),
+                       params = dict(auth=myconf.get('mailgun.api_key')))
+    if r.status_code != 200:
+        raise Exception('cannot verify if domain: {} is active'.format(d))
+    return dict_getv(r.json(),'domain.state') == 'active'
+
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     campaign = get_campaign(campaign_id)
-    r = mg_api_request('/domains/{}'.format(campaign.mg_domain),
-                       params = dict(auth=myconf.get('mailgun.api_key')))
-    if dict_getv(r.json(),'domain.state') != 'active':
+    if not domain_is_active(campaign.mg_domain):
         raise Exception('{} domain is disabled'.format(campaign.mg_domain))
     t0 = time.time()
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
