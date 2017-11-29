@@ -643,7 +643,7 @@ def register_on_db(campaign_id):
     credentials=get_credentials_storage()
     container,prefix=split_uri(campaign.cf_container_folder)
     index_file=campaign.index_file
-    object_name=path.join(prefix,index_file)
+    object_name=path.join(prefix,index_file).replace('\\','/')
     dld_file=download_object(container,object_name,pth,credentials)
     ok=0
     errors=0
@@ -748,7 +748,7 @@ def cf_validate_doc_set2(campaign_id,objs):
     cont = cf.get_container(container)
     t1= time.time()
     for o in objs:
-        obj=cont.get_object(path.join(prefix,o))
+        obj=cont.get_object(path.join(prefix,o).replace('\\','/'))
         if obj.bytes:
             seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
             temp_url = obj.get_temp_url(seconds = seconds)
@@ -779,13 +779,16 @@ def cf_validate_doc_set2(campaign_id,objs):
     return (dict(updated=updated,connection= t1-t0,loop= t2-t1,records=len(objs),insert=t3-t2))
 
 def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
+    campaign = get_campaign(campaign_id)
+    r = mg_api_request('/domains/{}'.format(campaign.mg_domain),
+                       params = dict(auth=myconf.get('mailgun.api_key')))
+    if dict_getv(r.json(),'domain.state') != 'active':
+        raise Exception('{} domain is disabled'.format(campaign.mg_domain))
     t0 = time.time()
     docs = db((db.doc.osequence>=oseq_beg)&(db.doc.osequence<=oseq_end)&
-              (db.doc.campaign==campaign_id)&(db.doc.status=='validated')).select()
-    if not docs:
-        db(db.scheduler_task.id == W2PTASK.id).update(repeats = 1)
-        return
-    campaign = get_campaign(campaign_id)
+              (db.doc.campaign==campaign_id)&(db.doc.status=='validated')
+              ).select(orderby=db.doc.deliverytime|db.doc.osequence)
+    if not docs: return
     min_datetime = None
     t1= time.time()
     sended = 0
@@ -801,10 +804,9 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
             else:
                 min_datetime = mg_acceptance_time
     t2= time.time()
-    r = dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1,sended=sended)
+    r = dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1,processed=sended)
     if min_datetime:
         raise Exception('{}, Task has pending records to send in the future'.format(r))
-        #db(db.scheduler_task.id == W2PTASK.id).update( next_run_time=min_datetime)
     return r
 
 def event_data(**kwargs):
@@ -836,22 +838,15 @@ def save_image(campaign_logo):
     return fullname
 
 def send_doc_wrapper(*args,**kwargs):
-    #return errors about the rendering of the subject or view, if any
     sd_kwargs = { k : kwargs[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in kwargs}
-    try:
-        return process_mg_response(send_doc(*args,**sd_kwargs),*args,**kwargs)
-    except (NameError,requests.exceptions.RequestException)  as e:
-        event_data(doc=args[0],category='error',
-                event_type='send_doc',
-                event_data='error:{}'.format(e.message),
-                event_json=kwargs)
-        db.commit()
-        if isinstance(e,requests.exceptions.RequestException):
-            raise
+    doc_id = args[0]
+    update_doc = True
+    if 'update_doc' in kwargs:
+        update_doc = kwargs['update_doc']
+    return process_mg_response(send_doc(*args,**sd_kwargs),doc_id,update_doc=update_doc)
 
-def process_mg_response(*args,**kwargs):
+def process_mg_response(res,doc_id,update_doc=True):
     #    Mailgun returns standard HTTP response codes.
-
     #Code	Description
     #200	Everything worked as expected
     #400	Bad Request - Often missing a required parameter
@@ -859,35 +854,19 @@ def process_mg_response(*args,**kwargs):
     #402	Request Failed - Parameters were valid but request failed
     #404	Not Found - The requested item doesn’t exist
     #500, 502, 503, 504	Server Errors - something is wrong on Mailgun’s end
-    res=args[0]
-    doc_id=args[1]
-
-    doc=get_doc(doc_id) #response, doc_id
-    category='error'
-    if res.status_code == 200:
-        #doc.status=DOC_LOCAL_STATE_OK[4] if 'Queued' in res.json()['message'] else None
-        doc.status=DOC_LOCAL_STATE_OK[4]
-        category = 'info'
-    else:
-        doc.status=DOC_LOCAL_STATE_ERR[1]
-
-    doc.mailgun_id=res.json()['id'].strip('<').strip('>') if 'id' in res.json() else None
-    update_doc=True
-    if 'update_doc' in kwargs:
-        if not kwargs['update_doc']:
-            update_doc=False
+    queued = DOC_LOCAL_STATE_OK[4]
+    rejected = DOC_LOCAL_STATE_ERR[1]
+    doc = get_doc(doc_id) # retrieve doc from db
+    if not res.status_code in [200, 400]: 
+        res.raise_for_status()
+        return False
+    doc.status = queued if res.status_code == 200 else rejected
+    if doc.status == queued:
+        doc.mailgun_id=res.json()['id'].strip('<').strip('>') if 'id' in res.json() else None
     if update_doc: 
         doc.update_record()
-#    ed_id = event_data(doc=doc.id,category=category,
-#                event_type='send_doc',
-#                event_data='{}'.format(res.reason),
-#                event_json=res.json(),
-#                response_status_code=res.status_code)
         db.commit()
-    if res.status_code in [400,401,402,404,500,502,503,504]:
-        raise Exception('Mailgun returned status code = {}'.format(res.status_code))
-    return res.ok
-#   return ed_id
+    return doc.mailgun_id or res.text
 
 def get_campaign_tag(campaign):
     return str(campaign.id)+'_' + IS_SLUG()(campaign.campaign_name)[0]
@@ -898,7 +877,6 @@ def get_doc_view_url(docid):
     return URL('view',vars=dict( docid = docid ),scheme='https', host=server,hmac_key=URL_KEY)
     
 def get_context(doc,campaign,rc):
-    #rc = retrieve code row
     url_type = { 'Body Only': None , 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
     data = dict(record_id = doc.record_id,
             object_name = doc.object_name,
@@ -910,8 +888,6 @@ def get_context(doc,campaign,rc):
     data.update(doc.json)
     campaign_dict = dict( domain = campaign.mg_domain,
             uuid = campaign.uuid,
-            #mg_id = campaign.mg_campaign_id,
-            #mg_name = campaign.mg_campaign_name,
             campaign_name = campaign.campaign_name,
             available_from = campaign.available_from,
             available_until = campaign.available_until,
@@ -940,18 +916,14 @@ def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode
           'subject':render(campaign.email_subject,context=context) + sample_text,
           'html':html_body,
           'text':html2text.html2text(html_body.decode('utf-8'))}
-    #,'o:campaign':mg_campaign_id or campaign.mg_campaign_id}
     if not ignore_delivery_time:
         data['o:deliverytime']=RFC_2822_section_3_3(doc.deliverytime or campaign.available_from)
-
     data['o:tag']= [myconf.get('mailgun.tag_for_proofs')] if is_sample else [get_campaign_tag(campaign)]
     if campaign.mg_tags and not is_sample:
         data['o:tag']+= campaign.mg_tags[0:2] #maximum 3 tags per message
     if test_mode or campaign.test_mode:
         data['o:testmode']='true'
-    #v:myvar
     if campaign.service_type == 'Attachment':
-        #files.append( ('attachment', (doc.object_name, open(save_attachment(doc,campaign,rc),'rb').read())))
         for f in save_attachment(doc,campaign,rc):
             files.append(('attachment',(ntpath.basename(f),open(f,'rb').read())))
     return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
@@ -982,7 +954,7 @@ def validate_campaign(form):
     import pyrax.exceptions as exc
     from dateutil.relativedelta import relativedelta
     container_name = get_container_name(form.vars.cf_container_folder)
-    object_name=path.join(get_prefix(form.vars.cf_container_folder),form.vars.index_file)
+    object_name=path.join(get_prefix(form.vars.cf_container_folder),form.vars.index_file).replace('\\','/')
     r = exist_object(container_name,object_name,get_credentials_storage())
     #form.vars.mg_campaign_id = get_mg_campaign(mg_get_campaigns(form.vars.mg_domain or session.mg_domain),form.vars.mg_campaign_name)['id'] #retrieve mg_campaign_id from mailgun
     if not form.vars.available_until:  #default + 1 año
