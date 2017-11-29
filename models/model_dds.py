@@ -166,8 +166,7 @@ db.define_table('doc', Field('campaign','reference campaign'),
                 Field('object_name','string',notnull=True), #unique=True?              #required on index.csv fieldname = object_name
                 Field('rcode','integer',default = 0,writable=False,readable=False),
                 Field('email_address','string',notnull=True),            #required on index.csv fieldname = email_address
-                Field('deliverytime','datetime',
-                                compute = lambda row: parse_datetime(row.json['deliverytime'],campaign.datetime_format) if 'deliverytime' in row.json else None),
+                Field('deliverytime','datetime'),
                 Field('json','json',default = '{}'),
                 Field('checksum','string',default=0),
                 Field('bytes','integer',default=0),
