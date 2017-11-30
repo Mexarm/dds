@@ -690,6 +690,7 @@ def register_on_db(campaign_id):
     db(db.campaign.id==campaign_id).update(total_campaign_recipients=ok)
     db.commit()
     t2=time.time()
+    print '!clear!'
     return dict(ok=ok,errors=errors,total_rows=n,time=t2-t1,messages=json.dumps(messages))
 
 def reset_campaign_progress(campaign_id):
