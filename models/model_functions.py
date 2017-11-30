@@ -634,7 +634,7 @@ def register_on_db(campaign_id):
     from gluon.fileutils import abspath
     import csv
     t1=time.time()
-    sep=',' # ------ support diferent separators--------------
+    sep=',' # ------ IMPLEMENT: support diferent separators--------------
     quotechar='"'
     beg=time.time()
     pth=prepare_subfolder('index_files/')
@@ -653,18 +653,14 @@ def register_on_db(campaign_id):
     db.commit()
     with open(dld_file,'rb') as handle:                                                            # check UNICODE SUPPORT!!!
         csv_reader = csv.reader(handle,delimiter=sep,quotechar=quotechar) #
-        #hdr=handle.next() # read header (first line) strip \n
-        #hdr_list=[ f.strip('"').strip().lower() for f in hdr.strip('\n').strip('\r').split(sep)]# make a list of field names
         hdr_list=csv_reader.next() #
         if not set(REQUIRED_FIELDS) <= set(hdr_list):
             raise ValueError('required fields "{}" are not present in file {}/{}/{}'.format(','.join(REQUIRED_FIELDS),container,prefix,index_file))
         db.doc.campaign.default=campaign_id
         n=0
         osequence = 0
-        #for line in handle:
-        for line in csv_reader:#
+        for line in csv_reader:
             osequence +=1
-            #values = [v.strip('"') for v in line.strip('\n').strip('\r').split(sep)]
             values = line #
             rdict = make_doc_row(dict(zip(hdr_list, values)))
             rdict.update(dict(osequence=osequence))
@@ -673,27 +669,28 @@ def register_on_db(campaign_id):
                 if rd_json['deliverytime']:
                     rdict.update(dict(deliverytime = parse_datetime(rd_json['deliverytime'],campaign.datetime_format)))
             row=Storage(rdict)
-            ret = db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
-            valid=ret.id >0
-            if not valid:
-                messages.append('error record#: {}'.format(str(osequence)))
+            validation = IS_EMAIL(error_message='not valid email address')(row.email_address)
+            if validation[1]: #invalid email address
+                messages.append(dict(event='error',validation=validation,osequence=osequence,record_id=row.record_id))
                 errors+=1
             else:
+                db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
                 ok+=1
             n+=1
             if ok%1000 == 0:
                 print '!clear!{}'.format(str(dict(ok=ok,errors=errors, processes=n)))
-                db.commit() #commit each row to avoid lock of the db
+                db.commit() #COMMIT
     remove(dld_file)
     if db.doc.status.default != 'validated':
-        ret = scheduler.queue_task(create_validate_docs_tasks2,pvars=dict(campaign_id=campaign_id),timeout=1200) # timeout = 15secs per record
-        tasks = db.campaign(campaign_id).tasks
-        tasks =  tasks + [ret.id] if tasks else [ret.id]
-        db(db.campaign.id==campaign_id).update(tasks=tasks)
+        ret = scheduler.queue_task(create_validate_docs_tasks2,
+                                   pvars=dict(campaign_id=campaign_id),
+                                   timeout=1200,
+                                   immediate=True)
+        update_campaign_tasks(campaign_id,[ret.id])
     db(db.campaign.id==campaign_id).update(total_campaign_recipients=ok)
     db.commit()
     t2=time.time()
-    return dict(ok=ok,errors=errors,total_rows=n,time=t2-t1)
+    return dict(ok=ok,errors=errors,total_rows=n,time=t2-t1,messages=json.dumps(messages))
 
 def reset_campaign_progress(campaign_id):
     return db(db.campaign.id == campaign_id).update(status_progress = 0.0, current_task='')
@@ -701,6 +698,15 @@ def reset_campaign_progress(campaign_id):
 def get_ranges(start,end,i):
     if start==end: return [(start,end)]
     return [ (x,x+i-1) if x+i-1 < end else (x,end) for x in range(start,end,i)]
+
+def update_campaign_tasks(campaign_id, tasks_ids):
+    if not isinstance(tasks_ids,list): return
+    if not tasks_ids: return
+    tasks = db(db.campaign.id==campaign_id).select(db.campaign.tasks,limitby=(0,1)).first().tasks
+    tasks =  tasks + tasks_ids if tasks else tasks_ids
+    r = db(db.campaign.id==campaign_id).update(tasks=tasks)
+    db.commit()
+    return r
 
 def create_validate_docs_tasks2(campaign_id):
     campaign = db.campaign(campaign_id)
@@ -711,14 +717,18 @@ def create_validate_docs_tasks2(campaign_id):
     q = (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
     objs = db(q).select(db.doc.object_name,orderby=db.doc.osequence,groupby=db.doc.object_name)
     n=0
+    validate_tasks = []
     for beg in range(0,len(objs)+1,i):
         obj_list = [ obj.object_name for obj in objs[beg:beg+i]]
         validation_task = scheduler.queue_task(cf_validate_doc_set2,
                 pvars=dict(campaign_id=campaign_id,objs=obj_list),
                 timeout = timeout*i, period = period, retry_failed = -1,
-                group_name = WGRP_VALIDATORS)
+                group_name = WGRP_VALIDATORS,
+                immediate=True)
         n+=1
+        validate_tasks.append(validation_task.id)
         db.commit()
+    update_campaign_tasks(campaign_id,validate_tasks)
     return dict(result = '{} create_validate_tasks created'.format(n))
 
 def parse_datetime(s,dflt_format):

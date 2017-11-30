@@ -15,7 +15,8 @@ def validate_documents(campaign_id):
     ret = scheduler.queue_task(register_on_db,
                                pvars=dict(campaign_id=campaign_id),
                                timeout=86400, # 1 day
-                               sync_output=300)
+                               sync_output=300,
+                               immediate=True)
     tasks = campaign.tasks
     tasks = tasks + [ret.id] if tasks else [ret.id]
     db(db.campaign.id == campaign_id).update(tasks=tasks)
