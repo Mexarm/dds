@@ -658,9 +658,8 @@ def register_on_db(campaign_id):
             raise ValueError('required fields "{}" are not present in file {}/{}/{}'.format(','.join(REQUIRED_FIELDS),container,prefix,index_file))
         db.doc.campaign.default=campaign_id
         n=0
-        osequence = 0
+        osequence = 1
         for line in csv_reader:
-            osequence +=1
             values = line #
             rdict = make_doc_row(dict(zip(hdr_list, values)))
             rdict.update(dict(osequence=osequence))
@@ -675,6 +674,7 @@ def register_on_db(campaign_id):
                 errors+=1
             else:
                 db.doc.validate_and_insert(**row) #field values not defined in row should have a default value defined defined in the model
+                osequence +=1
                 ok+=1
             n+=1
             if ok%1000 == 0:

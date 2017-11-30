@@ -47,7 +47,7 @@ def launch_campaign(campaign_id):
     retry_failed = myconf.get('retry.retry_failed')
     timeout = myconf.get('retry.mailgun_timeout')
     i = myconf.get('task.load')
-    if campaign.mg_acceptance_time  > datetime.datetime.now():
+    if campaign.mg_acceptance_time > datetime.datetime.now():
         raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
     max = db.doc.osequence.max()
     e = campaign.total_campaign_recipients or db(db.doc.campaign == campaign_id).select(max).first()[max]
