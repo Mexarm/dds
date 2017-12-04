@@ -168,7 +168,12 @@ def list_campaign():
     limitby=(page*items_per_page,(page+1)*items_per_page+1)
     rows = db(db.campaign.created_by==auth.user.id).select(db.campaign.ALL,
             limitby=limitby,orderby=[~db.campaign.modified_on,db.campaign.created_on])
-    return dict(rows=rows,page=page,items_per_page=items_per_page,args=request.args,FM_STATES_WITH_PROGRESS_TRACKING=FM_STATES_WITH_PROGRESS_TRACKING)
+    return dict(rows=rows,
+                page=page,
+                items_per_page=items_per_page,
+                args=request.args,
+                FM_STATES_WITH_PROGRESS_TRACKING=FM_STATES_WITH_PROGRESS_TRACKING,
+                get_bootstrap_status_style=get_bootstrap_status_style)
 
 @auth.requires_login()
 def list_docs():

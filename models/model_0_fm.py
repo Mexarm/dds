@@ -196,10 +196,41 @@ def get_fm_options(campaign_row):
                                    )))]
     return result
 
+def get_bootstrap_status_style(status):
+    primary = ['finished']
+    success = ['live', 'scheduled']
+    info   = ['defined', 'documents ready', 'approved']
+    warning = ['validating documents', 'in approval', 'queueing']
+    danger  = ['documents error']
+    styles = [(primary,'primary'),
+              (success,'success'),
+              (info,'info'),
+              (warning,'warning'),
+              (danger,'danger')]
+    for l,s in styles:
+        if status in l:
+            return s
+    return 'info'
+
+def get_bootstrap_btn_class(event):
+    primary = ['validate documents'] 
+    success = ['approve'] 
+    info = ['send test'] 
+    warning = ['revert approval'] 
+    danger = ['launch campaign'] 
+    classes = [(primary,'btn-primary'),
+               (success,'btn-success'),
+               (info,'btn-info'),
+               (warning,'btn-warning'),
+               (danger,'btn-danger')]
+    for l,c in classes:
+        if event in l:
+            return c
+    return 'btn-info'
 
 def get_fm_action_buttons(campaign_id):
     campaign = get_campaign(campaign_id)
     buttons=[]
     for o,j in get_fm_options(campaign):
-        buttons+= [ str(BUTTON(o,_type="button", _class="btn {} fm-action".format('btn-success' if o == 'launch campaign' else 'btn-info'),  _data=j))]  #<button type="button" class="btn btn-info fm-action" data="{{=j}}">{{=o}}</button>
+        buttons+= [ str(BUTTON(o,_type="button", _class="btn {} fm-action".format(get_bootstrap_btn_class(o)),  _data=j))]  #<button type="button" class="btn btn-info fm-action" data="{{=j}}">{{=o}}</button>
     return XML ( ''.join(buttons))

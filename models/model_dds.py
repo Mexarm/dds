@@ -127,7 +127,7 @@ db.define_table('campaign',
                 Field('container_bytes','integer',writable=False),
                 Field('download_limit','integer',notnull=True,default=0), #maximun times that each file can be downloaded, 0= no limit, only valid when service type is DDS Server URL
                 Field('maximum_bandwith', 'integer',notnull=True,default=0), #limit the maximum bandwith to consume in bytes, 0= no limit, only valid when service type is DDS Server URL
-                Field('from_name','string',label='From address name',default='Notifications (No Reply)'),
+                Field('from_name','string',default='Notifications (No Reply)'),
                 Field('from_address','string',requires = IS_EMAIL(), label = 'From email address'),
                 Field('test_address','string',requires = IS_EMAIL_LIST(), label = 'email address to sent tests' ),
                 Field('email_subject','string',notnull=True, default=T('Your Document is Ready'),label=T('email subject')),

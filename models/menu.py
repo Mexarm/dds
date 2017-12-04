@@ -5,7 +5,7 @@
 # Customize your APP title, subtitle and menus here
 # ----------------------------------------------------------------------------------------------------------------------
 
-response.logo = A(B(myconf.get('app.brand')), XML('&reg;&nbsp;'),
+response.logo = A(IMG(_src=URL('static', 'images/HZD.png')),
                   _class="navbar-brand", _href=URL('index'),
                   _id="logo")
 response.title = request.application.replace('_', ' ').title()

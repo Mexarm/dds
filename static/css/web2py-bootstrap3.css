@@ -315,3 +315,92 @@ td.w2p_fc,
 input[type=checkbox], input[type=radio] {
     margin: 4px 4px 0 0;
 }
+
+/* cambia navbar */
+/* ajusta logo */
+.navbar .navbar-brand {
+    padding-top: 5px;
+  }
+  .navbar .navbar-brand img {
+    height: 37px;
+    width: 111px;
+  }
+
+  /* campaign-title */
+
+  .campaign-title {
+      font-size: 1.5em;
+      text-align: center;
+  }
+
+/* https://work.smarchal.com/twbscolor/3.3.7/css/ffffffe1ebff000000334b920 */
+
+.navbar-default {
+    background-color: #ffffff;
+    border-color: #e1ebff;
+  }
+  .navbar-default .navbar-brand {
+    color: #000000;
+  }
+  .navbar-default .navbar-brand:hover,
+  .navbar-default .navbar-brand:focus {
+    color: #334b92;
+  }
+  .navbar-default .navbar-text {
+    color: #000000;
+  }
+  .navbar-default .navbar-nav > li > a {
+    color: #000000;
+  }
+  .navbar-default .navbar-nav > li > a:hover,
+  .navbar-default .navbar-nav > li > a:focus {
+    color: #334b92;
+  }
+  .navbar-default .navbar-nav > .active > a,
+  .navbar-default .navbar-nav > .active > a:hover,
+  .navbar-default .navbar-nav > .active > a:focus {
+    color: #334b92;
+    background-color: #e1ebff;
+  }
+  .navbar-default .navbar-nav > .open > a,
+  .navbar-default .navbar-nav > .open > a:hover,
+  .navbar-default .navbar-nav > .open > a:focus {
+    color: #334b92;
+    background-color: #e1ebff;
+  }
+  .navbar-default .navbar-toggle {
+    border-color: #e1ebff;
+  }
+  .navbar-default .navbar-toggle:hover,
+  .navbar-default .navbar-toggle:focus {
+    background-color: #e1ebff;
+  }
+  .navbar-default .navbar-toggle .icon-bar {
+    background-color: #000000;
+  }
+  .navbar-default .navbar-collapse,
+  .navbar-default .navbar-form {
+    border-color: #000000;
+  }
+  .navbar-default .navbar-link {
+    color: #000000;
+  }
+  .navbar-default .navbar-link:hover {
+    color: #334b92;
+  }
+  
+  @media (max-width: 767px) {
+    .navbar-default .navbar-nav .open .dropdown-menu > li > a {
+      color: #000000;
+    }
+    .navbar-default .navbar-nav .open .dropdown-menu > li > a:hover,
+    .navbar-default .navbar-nav .open .dropdown-menu > li > a:focus {
+      color: #334b92;
+    }
+    .navbar-default .navbar-nav .open .dropdown-menu > .active > a,
+    .navbar-default .navbar-nav .open .dropdown-menu > .active > a:hover,
+    .navbar-default .navbar-nav .open .dropdown-menu > .active > a:focus {
+      color: #334b92;
+      background-color: #e1ebff;
+    }
+  }
