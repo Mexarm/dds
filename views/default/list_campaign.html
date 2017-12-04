@@ -9,7 +9,7 @@
 </div>
 
 <!-- botones de paginas -->
-<div class="row"> 
+<div class="row">
     <div class="center-block" style="width:200px;">
         <div style="text-align: center;">
             <small>
@@ -65,7 +65,11 @@
                                 <tr>
                                     <td class="field-label active">{{=T('Recipients')}}</td>
                                     <td>
-                                        <span><mark>{{='{:,}'.format(row.total_campaign_recipients)}}</mark></span>
+                                        {{if row.total_campaign_recipients:}}
+                                        <span>
+                                            <mark>{{='{:,}'.format(row.total_campaign_recipients)}}</mark>
+                                        </span>
+                                        {{pass}}
                                     </td>
                                 </tr>
                                 <tr>
@@ -85,8 +89,8 @@
                                         <!-- prograss bar -->
                                         <div id="status_progress_{{=row.id}}">
                                             <div class="progress" style="width:300px">
-                                                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{{=row.status_progress}}" aria-valuemin="0" aria-valuemax="100"
-                                                    style="min-width: 2em; width: {{=int(row.status_progress)}}%;">
+                                                <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="{{=row.status_progress}}" aria-valuemin="0"
+                                                    aria-valuemax="100" style="min-width: 2em; width: {{=int(row.status_progress)}}%;">
                                                     {{='{:3.2f}'.format(row.status_progress)}}%
                                                 </div>
                                             </div>
@@ -122,7 +126,10 @@
                                         {{pass}}
                                     </li>
                                     <li>
-                                        <a href={{=URL( 'list_docs',args=[row.id, 'none'])}}>{{=T('recipients')}} <span class="badge">{{='{:,}'.format(row.total_campaign_recipients)}}</span></a>
+                                        <a href={{=URL( 'list_docs',args=[row.id, 'none'])}}>{{=T('recipients')}} {{if row.total_campaign_recipients:}}
+                                            <span class="badge">{{='{:,}'.format(row.total_campaign_recipients)}}</span>
+                                            {{pass}}
+                                        </a>
                                     </li>
                                     {{if row.status in ['queueing', 'live', 'scheduled', 'finished' ]:}}
                                     <li role="separator" class="divider"></li>
@@ -230,21 +237,21 @@
 </div>
 
 <!-- botones de paginas -->
-<div class="row"> 
-        <div class="center-block" style="width:200px;">
-            <div style="text-align: center;">
-                <small>
-                    <code> page: {{=page+1}}</code>
-                </small>
-            </div>
-            <div class="btn-group btn-group-justified" role="group" aria-label="page-navigation">
-                <a href="{{=URL(args=[page-1])}}" class="btn btn-primary{{if not page:}} disabled{{pass}} btn-sm" role="button">previous</a>
-                <a href="{{=URL(args=[page+1])}}" class="btn btn-primary{{if not len(rows)>items_per_page:}} disabled{{pass}} btn-sm" role="button">next</a>
-            </div>
+<div class="row">
+    <div class="center-block" style="width:200px;">
+        <div style="text-align: center;">
+            <small>
+                <code> page: {{=page+1}}</code>
+            </small>
+        </div>
+        <div class="btn-group btn-group-justified" role="group" aria-label="page-navigation">
+            <a href="{{=URL(args=[page-1])}}" class="btn btn-primary{{if not page:}} disabled{{pass}} btn-sm" role="button">previous</a>
+            <a href="{{=URL(args=[page+1])}}" class="btn btn-primary{{if not len(rows)>items_per_page:}} disabled{{pass}} btn-sm" role="button">next</a>
         </div>
     </div>
-    <!-- botones de pagina -->
-    
+</div>
+<!-- botones de pagina -->
+
 
 
 {{block head}}
