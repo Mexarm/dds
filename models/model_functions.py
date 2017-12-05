@@ -8,7 +8,7 @@ import sys
 import inspect
 #import traceback
 import urllib2
-from urlparse import urlparse, parse_qs
+from urlparse import urlparse, parse_qs, urljoin
 import hashlib, hmac
 
 import pyrax
@@ -504,6 +504,41 @@ def container_object_count_total_bytes(container_name,credentials):
             return e
         return (object_count,total_bytes)
 
+def cf_create_container(container_name):
+    """ if containers exists returns that container
+    """
+    import pyrax
+    import pyrax.exceptions as exc
+    import pyrax.utils as utils
+    credentials = get_credentials_storage()
+    pyrax.set_setting("identity_type", "rackspace")
+    pyrax.set_default_region(credentials.region or get_region_id(rackspace_regions[0]))
+    try:
+        pyrax.set_credentials(credentials.username, credentials.api_key)
+    except exc.AuthenticationFailed as e:
+        return e
+    cf=pyrax.connect_to_cloudfiles(credentials.region)
+    return cf.create_container(container_name)
+
+def cf_get_CDN_url(obj,ssl=False):
+    """ obj is Storage object (pyrax.cloudfiles), it must be inside a 
+    public container
+    """
+    import urllib
+    encoded_name = urllib.quote(obj.name)
+    uri = obj.container.cdn_ssl_uri if ssl else obj.container.cdn_uri
+    return urljoin(uri, encoded_name)
+
+def cf_get_object_with_metadata_key_value(objects,key,value):
+    """ looks in the objects list if an returns the 
+    object that matchs key, value
+    """
+    for obj in objects:
+        meta = obj.get_metadata()
+        if key in meta.keys():
+            if meta[key] == value: return obj
+    return None
+        
 def exist_object(container_name,object_name,credentials):
     """
     object_name with prefix example folder/example.txt
