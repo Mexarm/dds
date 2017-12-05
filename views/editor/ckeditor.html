@@ -8,6 +8,8 @@
                     CKEDITOR.replace( 'campaign_html_body',{
                             language: "es-mx",
                             fullPage: "true",
-                            height: 500
+                            height: 500,
+                            extraPlugins: "uploadimage",
+                            imageUploadUrl: "{{=URL('storage_proxy',args=[campaign_tag])}}"
                         } );
                  </script>
