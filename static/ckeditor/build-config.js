@@ -13,10 +13,10 @@
  * (1) http://ckeditor.com/builder
  *     Visit online builder to build CKEditor from scratch.
  *
- * (2) http://ckeditor.com/builder/d873a102bff348a3e89735a4df3af0a1
+ * (2) http://ckeditor.com/builder/770bb7d1a82ef4551d5db2f57404ffeb
  *     Visit online builder to build CKEditor, starting with the same setup as before.
  *
- * (3) http://ckeditor.com/builder/download/d873a102bff348a3e89735a4df3af0a1
+ * (3) http://ckeditor.com/builder/download/770bb7d1a82ef4551d5db2f57404ffeb
  *     Straight download link to the latest version of CKEditor (Optimized) with the same setup as before.
  *
  * NOTE:
@@ -25,7 +25,7 @@
  */
 
 var CKBUILDER_CONFIG = {
-	skin: 'moono',
+	skin: 'moono-lisa',
 	preset: 'full',
 	ignore: [
 		'.DS_Store',
@@ -64,6 +64,7 @@ var CKBUILDER_CONFIG = {
 		'dialogadvtab' : 1,
 		'div' : 1,
 		'elementspath' : 1,
+		'emojione' : 1,
 		'enterkey' : 1,
 		'entities' : 1,
 		'filebrowser' : 1,
@@ -87,9 +88,12 @@ var CKBUILDER_CONFIG = {
 		'magicline' : 1,
 		'maximize' : 1,
 		'newpage' : 1,
+		'niftytimers' : 1,
 		'pagebreak' : 1,
 		'pastefromword' : 1,
 		'pastetext' : 1,
+		'placeholder' : 1,
+		'placeholder_select' : 1,
 		'preview' : 1,
 		'print' : 1,
 		'removeformat' : 1,
@@ -113,7 +117,8 @@ var CKBUILDER_CONFIG = {
 		'uploadimage' : 1,
 		'wsc' : 1,
 		'wysiwygarea' : 1,
-		'youtube' : 1
+		'youtube' : 1,
+		'zoom' : 1
 	},
 	languages : {
 		'en' : 1,

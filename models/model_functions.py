@@ -948,8 +948,19 @@ def get_context(doc,campaign,rc):
         campaign_dict.update(dict(logo_src = 'cid:{}'.format(campaign.logo)))
     return dict(data=Storage(data),campaign=Storage(campaign_dict))
 
+def get_context_fields(context, parent='', prekey = '.', postkey = ''):
+    result = []
+    for k,v in context.iteritems():
+        if isinstance(v, dict) or isinstance(v,Storage):
+            result += get_context_fields(v,parent=k,prekey=prekey,postkey=postkey)
+        else:
+            pre = prekey if parent else ''
+            result.append(parent + pre + k +postkey)
+    return result
+
 def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
+    from re import sub
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.rcode,doc.campaign)
@@ -960,11 +971,14 @@ def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode
             save_image(campaign.logo)
         files.append(("inline",open(logofile,'rb')))
     context=get_context(doc,campaign,rc)
-    html_body = render(campaign.html_body,context=context)
-    sample_text = "[sample c={},d={},r={}]".format(campaign.id,doc.id,doc.record_id) if is_sample else ""
+    raw_html_body = sub(r'(\[\[)(\w+\.\w+)(\]\])', r'{{=\2}}', campaign.html_body) # [[xxx.yyy]] -> {{=xxx.yy}}
+    raw_subject = sub(r'(\[\[)(\w+\.\w+)(\]\])', r'{{=\2}}', campaign.email_subject) # [[xxx.yyy]] -> {{=xxx.yy}}
+    html_body = render(raw_html_body,context=context)
+    subject = render(raw_subject,context=context)
+    sample_text = "[sample c={},rid={}]".format(campaign.id,doc.record_id) if is_sample else ""
     data={'from':'{} <{}>'.format(campaign.from_name,campaign.from_address) if campaign.from_name else campaign.from_address,
           'to':to or doc.email_address,
-          'subject':render(campaign.email_subject,context=context) + sample_text,
+          'subject': subject + sample_text,
           'html':html_body,
           'text':html2text.html2text(html_body.decode('utf-8'))}
     if not ignore_delivery_time:

@@ -69,8 +69,12 @@ def storage_proxy():
 def ckeditor():
     campaign=get_campaign(int(request.args[0]))
     campaign_tag = get_campaign_tag(campaign)
+    doc = db(db.doc.campaign == campaign.id).select(limitby=(0,1)).first()
+    rc = get_rcode(doc.rcode,doc.campaign)
+    context = get_context(doc, campaign, rc)
+    fields = get_context_fields(context)
     for f in db.campaign.fields:
-        if f != 'html_body':
+        if not f in ['html_body', 'from_name', 'from_address' ,'email_subject' ]:
             db.campaign[f].readable = False
             db.campaign[f].writable = False
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
@@ -79,4 +83,5 @@ def ckeditor():
        # redirect(URL('list_campaign'))
     elif form.errors:
         response.flash='Errores'
-    return dict(form=form, campaign_tag = campaign_tag)
+    return dict(form=form, campaign_tag = campaign_tag, fields = json.dumps(fields), 
+                format = '<span class="cke_placeholder">[[%placeholder%]]</span>')
