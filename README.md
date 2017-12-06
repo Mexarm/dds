@@ -1,7 +1,7 @@
 # dds
 Document Delivery System
 
-#description
+# description
 A scalable web2py application to send electronic documents to email recipients.
 
 it uses rackspace cloudfiles as storage, and mailgun as the email delivery and tracking infraestructure.

@@ -6,6 +6,8 @@ import uuid
 from dateutil.tz import tzlocal
 import pytz
 
+GOOGLE_TRACKING_ID = myconf.get('google.tracking_id')
+
 SERVICE_TYPE=['Body Only','Attachment','Cloudfiles Temp URL', 'DDS Server URL']
 
 DOC_LOCAL_STATE_OK = [ 'initial', 'validating','validated', 'queued (local)', 'queued (mailgun)' ]
