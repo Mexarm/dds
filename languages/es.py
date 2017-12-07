@@ -141,6 +141,7 @@
 'DB': 'BDD',
 'db': 'bdd',
 'DB Model': 'Modelo BDD',
+'Default email subject': 'Default email subject',
 'defines tables': 'define tablas',
 'Delete': 'Eliminar',
 'delete': 'eliminar',
@@ -578,5 +579,6 @@
 'You can modify this application and adapt it to your needs': 'Usted puede modificar esta aplicación y adaptarla a sus necesidades',
 'You visited the url %s': 'Usted visitó la url %s',
 'Your Document is Ready': 'Your Document is Ready',
+'Your Name': 'Your Name',
 'Your username is: %(username)s': 'Su nombre de usuario es: %(username)s',
 }

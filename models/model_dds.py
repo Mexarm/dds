@@ -75,6 +75,24 @@ class IS_EMAIL_LIST(object):
                 return (email, self.error_message % email)
         return (self.sep.join(emails), None)
 
+class HAS_UNSUBSCRIBE_URL(object):
+    def __init__(self, error_message='no valid unsubscribe url found please use: ' \
+                                     '<a href="%unsubscribe_url%">...</a> (valid urls: {})',
+                 default='<br><p><a href="%unsubscribe_url%">unsubscribe</a></p>',
+                 valid_url_list=['%unsubscribe_url%', '%tag_unsubscribe_url%',
+                                 '%mailing_list_unsubscribe_url%']):
+        self.error_message = error_message
+        self.default = default
+        self.valid_url_list = valid_url_list
+
+    def __call__(self, value):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(value, 'html.parser')
+        for a in soup.find_all('a'):
+            if a['href'] in self.valid_url_list:
+                return (value, None)
+        return (value, self.error_message.format(self.valid_url_list))
+
 def mysql_add_index(table, column):
     if db._uri[:5] == 'mysql':
         params = dict(table=table, column=column, idx_name='{}__idx'.format(column))
@@ -129,11 +147,12 @@ db.define_table('campaign',
                 Field('container_bytes','integer',writable=False),
                 Field('download_limit','integer',notnull=True,default=0), #maximun times that each file can be downloaded, 0= no limit, only valid when service type is DDS Server URL
                 Field('maximum_bandwith', 'integer',notnull=True,default=0), #limit the maximum bandwith to consume in bytes, 0= no limit, only valid when service type is DDS Server URL
-                Field('from_name','string',default='Notifications (No Reply)'),
+                Field('from_name','string',default=T('Your Name'),requires=IS_NOT_EMPTY()),
                 Field('from_address','string',requires = IS_EMAIL(), label = 'From email address'),
                 Field('test_address','string',requires = IS_EMAIL_LIST(), label = 'email address to sent tests' ),
-                Field('email_subject','string',notnull=True, default=T('Your Document is Ready'),label=T('email subject')),
-                Field('html_body','text',notnull=True, default=''),
+                Field('email_subject','string',notnull=True, default=T('Default email subject'),label=T('email subject'),
+                      requires=IS_NOT_EMPTY()),
+                Field('html_body','text', notnull=True, default='', requires=HAS_UNSUBSCRIBE_URL()),
                 Field('BF_json','json',readable=False,writable=False),
                 Field('logo','upload', uploadfield='logo_file'),
                 Field('logo_file', 'blob'),

@@ -1,8 +1,8 @@
-sudo apt-get install -y python python-dev libssl-dev
-sudo easy_install pip
+sudo apt-get install python-pip python-dev libssl-dev libffi-dev python-dateutil
 sudo pip install pyrax
-sudo pip install automaton
 sudo pip install html2text
+sudo pip install automaton
+sudo pip install beautifulsoup4
 
 #sudo pip install pyparsing
 #sudo pip install debtcollector

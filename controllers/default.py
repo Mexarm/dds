@@ -47,7 +47,7 @@ def process_event():
 def get_html_body():
     campaign=get_campaign(request.args[0])
     if campaign:
-        return campaign.html_body
+        return XML(campaign.html_body)
     raise HTML(404)
 
 @auth.requires_login()
@@ -117,7 +117,7 @@ def edit_campaign():
     #db.campaign.html_body.readable=False
     #if not db.campaign.html_body.writable: db.campaign.html_body.readable=False
     db.campaign.BF_json.readable=False
-    db.campaign.html_body.widget=advanced_editor
+    #db.campaign.html_body.widget=advanced_editor
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
     tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
     doc = db((db.doc.campaign == campaign.id) & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
