@@ -109,15 +109,10 @@ def webhook():
 @auth.requires_login()
 def edit_campaign():
     campaign_id=request.args[0]
-    #mg_update_local_campaign_stats(campaign_id)
     campaign=get_campaign(campaign_id)
     set_campaign_fields_writable(campaign.status)
-    #db.campaign.mg_campaign_name.requires=IS_IN_SET(campaigns_list(mg_get_campaigns(campaign.mg_domain)))
     db.campaign.uncompress_attachment.show_if = (db.campaign.service_type == 'Attachment')
-    #db.campaign.html_body.readable=False
-    #if not db.campaign.html_body.writable: db.campaign.html_body.readable=False
     db.campaign.BF_json.readable=False
-    #db.campaign.html_body.widget=advanced_editor
     form=SQLFORM(db.campaign,campaign,upload=URL('download'))
     tasks = [ scheduler.task_status(t,output=True) for t in campaign.tasks]
     doc = db((db.doc.campaign == campaign.id) & db.doc.status.belongs(DOC_LOCAL_STATE_OK[2:])).select(limitby=(0,1)).first()
@@ -250,7 +245,6 @@ def create_campaign():
     except IOError:
         html_body='Please download your document {{=url}}'
     db.campaign.html_body.default = html_body
-    db.campaign.html_body.widget=advanced_editor
     db.campaign.uncompress_attachment.show_if = (db.campaign.service_type == 'Attachment')
     form=SQLFORM(db.campaign)
     if form.process(onvalidation=validate_campaign).accepted:

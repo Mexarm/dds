@@ -50,6 +50,17 @@ MAX_ALLOWED_PACKET = db.executesql("SHOW VARIABLES like 'max_allowed_packet';")[
 BEEFREE_CLIENT_ID = myconf.get('befree.client_id')
 BEEFREE_CLIENT_SECRET = myconf.get('befree.client_secret')
 
+coment1 = """<small><p>Please include an unsubscribe link in the body, 
+ex.: <code>"""
+comment2 = '<a href="%unsubscribe_url%"><unsubscribe>unsubscribe</unsubscribe></a>'
+comment3 = """</code></p><p>
+1) <code>%unsubscribe_url%</code> -- link to unsubscribe recipient from all messages sent by
+given domain<br />
+2) <code>%tag_unsubscribe_url%</code> -- link to unsubscribe from all tags provided in the message <br />
+3) <code>%mailing_list_unsubscribe_url%</code> -- link to unsubscribe from future messages sent to a 
+mailing list<br /></p></small>"""
+HTML_BODY_COMMENT = XML(coment1 + xmlescape(comment2)+ comment3)
+
 def compute_acceptance_time(dt):
     import datetime
     from dateutil.relativedelta import relativedelta
@@ -152,7 +163,8 @@ db.define_table('campaign',
                 Field('test_address','string',requires = IS_EMAIL_LIST(), label = 'email address to sent tests' ),
                 Field('email_subject','string',notnull=True, default=T('Default email subject'),label=T('email subject'),
                       requires=IS_NOT_EMPTY()),
-                Field('html_body','text', notnull=True, default='', requires=HAS_UNSUBSCRIBE_URL()),
+                Field('html_body','text', notnull=True, default='', requires=HAS_UNSUBSCRIBE_URL(),
+                      comment=HTML_BODY_COMMENT),
                 Field('BF_json','json',readable=False,writable=False),
                 Field('logo','upload', uploadfield='logo_file'),
                 Field('logo_file', 'blob'),
