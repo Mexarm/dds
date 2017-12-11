@@ -118,14 +118,6 @@ def mysql_add_index(table, column):
             return db.executesql(
                 "ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
 
-def advanced_editor(field, value):
-    return TEXTAREA(_id = str(field).replace('.','_'), 
-                    _name=field.name, 
-                    _class='text ckeditor', 
-                    value=value, 
-                    _cols=80, 
-                    _rows=10)
-
 db.define_table('campaign',
                 Field('uuid', 'string',default=uuid.uuid4(), label='Campaign UUID', writable=False, readable=False),
                 Field('mg_domain','string',label = 'Mailgun Domain'),

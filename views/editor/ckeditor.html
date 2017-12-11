@@ -6,17 +6,18 @@
 <script>
   CKEDITOR.replace('campaign_html_body', {
     language: "es-mx",
-    fullPage: "true",
+    fullPage: true,
     height: 500,
     extraPlugins: "uploadimage",
     imageUploadUrl: "{{=URL('storage_proxy',args=[campaign_tag])}}",
+    allowedContent: true,
     placeholder_select: {
       placeholders: {{=XML(fields)}},
       format: '{{=XML(format)}}'
     },
     removeButtons: 'CreatePlaceholder,About', 
     /*https://stackoverflow.com/questions/23538462/how-to-remove-buttons-from-ckeditor-4*/
-    on: {
+    on: { /* captures click event on place holder elements and cancel it */
       instanceReady: function (evt) {
         evt.editor.on('doubleclick', function (evt) {
           var element = evt.data.element;
