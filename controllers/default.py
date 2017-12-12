@@ -295,7 +295,8 @@ def view():
         if campaign.available_until > datetime.now():
             rc = get_rcode(doc.rcode,doc.campaign)
             context=get_context(doc,campaign,rc)
-            html_body = render(campaign.html_body,context=context)
+            raw_html_body = sub(r'(\[\[)(\w+\.\w+)(\]\])', r'{{=\2}}', campaign.html_body) # [[xxx.yyy]] -> {{=xxx.yy}}
+            html_body = render(raw_html_body,context=context)
             return html_body
         else:
             raise HTTP(410) #410 Gone	The requested page is no longer available
