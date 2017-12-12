@@ -293,6 +293,7 @@ def view():
         campaign = get_campaign(doc.campaign)
         from datetime import datetime
         if campaign.available_until > datetime.now():
+            from re import sub
             rc = get_rcode(doc.rcode,doc.campaign)
             context=get_context(doc,campaign,rc)
             raw_html_body = sub(r'(\[\[)(\w+\.\w+)(\]\])', r'{{=\2}}', campaign.html_body) # [[xxx.yyy]] -> {{=xxx.yy}}
