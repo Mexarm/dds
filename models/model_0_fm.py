@@ -163,24 +163,29 @@ def FM_store(campaign_id,fm,fm_history):
 def FM_get_user_options(fm):
     return [o for o in fm._transitions[fm.current_state].keys() if o[0] != "_" ]
 
-def FM_process_event(campaign_id,fm_event):
+def FM_process_event(campaign_id,fm_event,interactive=False):
     from datetime import datetime
     fm,fm_history = FM_get(campaign_id)
     cstate=fm.current_state
+    campaign = get_campaign(campaign_id)
+    if campaign.service_type in ['Attachment','Cloudfiles Temp URL', 'DDS Server URL'] and \
+        (campaign.available_until < datetime.now()) and interactive:
+        return (None, dict(msg="cannot process event, campaign has expired"))
     fm.process_event(fm_event)
     if auth.user:
         by = auth.user.email
     else:
         by = "System" #when it runs inside the scheduler worker
-    fm_history += ["{} by {}:{},{},{}".format(str(datetime.now()), by ,cstate,fm_event,fm.current_state) ]
+    details = "{} by {}:{},{},{}".format(str(datetime.now()), by ,cstate,fm_event,fm.current_state)
+    fm_history += [details]
     FM_store(campaign_id,fm,fm_history)
     f = fm_on_enter(fm.current_state,fm_event)
     if f:
         def closure():
             return f(campaign_id) #returns the function or it could be called here ?
-        return closure
+        return (closure,dict(msg=details))
     else:
-        return None
+        return (None,dict(msg=details))
 
 def get_fm_options(campaign_row):
     #import json

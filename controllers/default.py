@@ -33,10 +33,10 @@ def process_event():
     campaign = db.campaign(campaign_id)
     if auth.user.id == campaign.created_by:
         try:
-            f = FM_process_event(campaign_id, event)
+            f,m = FM_process_event(campaign_id, event,interactive=True)
             if f:
                 r = f()
-            return "sucess!"
+            return m["msg"]
         except exceptions.AutomatonException as e:
             return e.message
     else:
