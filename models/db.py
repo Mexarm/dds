@@ -127,7 +127,7 @@ mail.settings.ssl = myconf.get('smtp.ssl') or False
 auth.settings.registration_requires_verification = True 
 auth.settings.registration_requires_approval = True
 auth.settings.reset_password_requires_verification = True
-
+auth.settings.actions_disabled.append('register')
 # -------------------------------------------------------------------------
 # Define your tables below (or better in another model file) for example
 #

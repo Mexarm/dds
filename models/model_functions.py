@@ -793,27 +793,30 @@ def cf_validate_doc_set2(campaign_id,objs):
     rcode_values = list()
     cont = cf.get_container(container)
     t1= time.time()
+    q = (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
     for o in objs:
-        obj=cont.get_object(path.join(prefix,o).replace('\\','/'))
-        if obj.bytes:
-            seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
-            temp_url = obj.get_temp_url(seconds = seconds)
-            rcode=uuid.uuid4()
-            dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
-            rcode_values.append(dict(
-                                    object_name = o,
-                                    temp_url=temp_url,
-                                    dds_url=dds_url,
-                                    rcode=rcode
-                                    ))
-            doc_values.append(dict(
-                                        bytes=obj.bytes,
-                                        checksum=obj.etag))
-        else:
+        try:
+            obj=cont.get_object(path.join(prefix,o).replace('\\','/'))
+            if obj.bytes:
+                seconds = (campaign.available_until - datetime.datetime.now()).total_seconds() #seconds from now to campaign.available_until
+                temp_url = obj.get_temp_url(seconds = seconds)
+                rcode=uuid.uuid4()
+                dds_url = URL('secure',vars=dict( rcode = rcode ),scheme='https', host=server,hmac_key=URL_KEY)
+                rcode_values.append(dict(
+                                        object_name = o,
+                                        temp_url=temp_url,
+                                        dds_url=dds_url,
+                                        rcode=rcode
+                                        ))
+                doc_values.append(dict(
+                                            bytes=obj.bytes,
+                                            checksum=obj.etag))
+            else:
+                db(q & (db.doc.object_name == o)).update(status=DOC_LOCAL_STATE_ERR[0])
+        except pyrax.exceptions.NoSuchObject as e:
             db(q & (db.doc.object_name == o)).update(status=DOC_LOCAL_STATE_ERR[0])
     t2= time.time()
     db.retrieve_code.campaign.default=campaign.id
-    q = (db.doc.campaign==campaign_id)&(db.doc.status==DOC_LOCAL_STATE_OK[0])
     updated=0
     for n,rc in enumerate(rcode_values):
         rc_id = db.retrieve_code.insert(**rc)
@@ -1082,7 +1085,7 @@ def validating_documents_progress(campaign_id):
     if tsk:
         progress1 = 50.0
     if campaign.total_campaign_recipients:
-        validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status == 'validated')).count()
+        validated_docs =  db((db.doc.campaign == campaign_id) & (db.doc.status.belongs(['validated', DOC_LOCAL_STATE_ERR[0]]))).count()
         progress2 = (validated_docs / float(campaign.total_campaign_recipients) ) * 50.0 #validate docs is the 50% of the validate docs process
 
     campaign.status_progress = progress1+progress2

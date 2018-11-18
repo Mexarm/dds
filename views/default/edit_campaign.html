@@ -107,8 +107,8 @@ tr.traceback {
                 <td>{{=ts.scheduler_task.function_name}}</td>
                 <td>{{=ts.scheduler_task.status}}</td>
                 <td>{{=ts.scheduler_task.last_run_time}}</td>
-                <td>{{=ts.scheduler_task.args}}</td>
-                <td>{{=ts.scheduler_task.vars}}</td>
+                <td><small>{{=str(ts.scheduler_task.args)[:255]}}</small></td>
+                <td><small>{{=str(ts.scheduler_task.vars)[:255]}}</small></td>
                 <td>{{=ts.scheduler_run.run_output}}</td>
                 <td>{{=ts.scheduler_run.run_result}}</td>
         </tr>
