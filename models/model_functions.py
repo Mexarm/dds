@@ -704,6 +704,7 @@ def register_on_db(campaign_id):
                     rdict.update(dict(deliverytime = parse_datetime(rd_json['deliverytime'],campaign.datetime_format)))
             row=Storage(rdict)
             validation = IS_EMAIL(error_message='not valid email address')(row.email_address)
+            row.email_address = row.email_address.lower()
             if validation[1]: #invalid email address
                 messages.append(dict(event='error',validation=validation,osequence=osequence,record_id=row.record_id))
                 errors+=1
