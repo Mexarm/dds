@@ -140,7 +140,8 @@ def select_mg_domain():
     form=FORM('mailgun domain:',
               DIV(SELECT(_name='mg_domain',_class='selectpicker',*domains ),
               INPUT(_type='submit',_value=T('Next'))),
-              DIV(BR(),SPAN(T('Only Active domains with open, click and unsubscribed tracking set to "On" \
+              #DIV(BR(),SPAN(T('Only Active domains with open, click and unsubscribed tracking set to "On" \
+              DIV(BR(),SPAN(T('Only Active domains with open, click tracking set to "On" \
                                will appear here (mailgun domain settings)'),
               _class = "label label-info" )))
     if form.accepts(request,session):

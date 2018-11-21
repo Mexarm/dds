@@ -294,8 +294,8 @@ def active_domains_list(res): #takes the mail gun request.response object and bu
         r = mg_api_request('/domains/{}/tracking'.format(d['name']),dict(auth = myconf.get('mailgun.api_key'))).json()
         if (d['state']=='active') and d['type'] != 'sandbox'and \
                                   dict_getv(r,'tracking.click.active') and \
-                                  dict_getv(r,'tracking.open.active') and \
-                                  dict_getv(r,'tracking.unsubscribe.active'):
+                                  dict_getv(r,'tracking.open.active'): # and \
+                                  #dict_getv(r,'tracking.unsubscribe.active'):
             l.append(d['name'])
     return l
 
