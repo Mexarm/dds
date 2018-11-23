@@ -688,7 +688,7 @@ def register_on_db(campaign_id):
     db.commit()
     with open(dld_file,'rb') as handle:                                                            # check UNICODE SUPPORT!!!
         csv_reader = csv.reader(handle,delimiter=sep,quotechar=quotechar) #
-        hdr_list=csv_reader.next() #
+        hdr_list=[ IS_SLUG()(fldn)[0].replace('-',"_") for fldn in csv_reader.next() ] #fix 17
         if not set(REQUIRED_FIELDS) <= set(hdr_list):
             raise ValueError('required fields "{}" are not present in file {}/{}/{}'.format(','.join(REQUIRED_FIELDS),container,prefix,index_file))
         db.doc.campaign.default=campaign_id
