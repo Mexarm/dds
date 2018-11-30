@@ -444,7 +444,7 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True
         if c:
-            if c.status in ['in approval','approved','queuing','live','scheduled']:
+            if c.status in ['queuing','live','scheduled']:
                 reclaim_attach_storage_campaign(c_uuid)
                 rmtree=False
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
@@ -455,9 +455,10 @@ def reclaim_attach_storage_campaign(c_uuid):
     c_folder = path.join(attach_temp,c_uuid)
     c=get_campaign_by_uuid(c_uuid)
     if c.status == 'in approval': return #dont reclaim storage in approval
+    queued = DOC_LOCAL_STATE_OK[4]
     for f in [entry for entry in listdir(c_folder) if path.isfile(path.join(c_folder,entry))]:
-        row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status =='validated') ).select(limitby=(0,1)).first()
-        if not row:
+        row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status == queued )).select(limitby=(0,1)).first()
+        if row:
             pth=path.join(c_folder,f)
             remove(pth)
             if path.isdir(pth+'.unzip'):
@@ -703,8 +704,8 @@ def register_on_db(campaign_id):
                 if rd_json['deliverytime']:
                     rdict.update(dict(deliverytime = parse_datetime(rd_json['deliverytime'],campaign.datetime_format)))
             row=Storage(rdict)
+            row.email_address = row.email_address.strip().lower()
             validation = IS_EMAIL(error_message='not valid email address')(row.email_address)
-            row.email_address = row.email_address.lower()
             if validation[1]: #invalid email address
                 messages.append(dict(event='error',validation=validation,osequence=osequence,record_id=row.record_id))
                 errors+=1
