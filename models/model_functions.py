@@ -442,11 +442,11 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         return
     for c_uuid in listdir(attach_temp):
         c=get_campaign_by_uuid(c_uuid)
-        rmtree=True
+        rmtree=False
         if c:
             if c.status in ['live','scheduled']:
                 reclaim_attach_storage_campaign(c_uuid)
-                rmtree=False
+                rmtree=True
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
 
 def reclaim_attach_storage_campaign(c_uuid):
