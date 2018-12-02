@@ -870,7 +870,7 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
     myworkers = MTRequests.MTRequests(q, mg_send_message, num_workers=100)
     out = myworkers.run()
     for item in list(out.queue):
-        if not item.error:
+        if not item['error']:
             send_doc_wrapper(item.output)
             sended +=1 
     t2= time.time()
