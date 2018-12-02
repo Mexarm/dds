@@ -944,7 +944,7 @@ def get_campaign_tag(campaign):
 def get_doc_view_url(docid):
     #docid is the uuid of the doc
     server = myconf.get('host.server')
-    return URL('view',vars=dict( docid = docid ),scheme='https', host=server,hmac_key=URL_KEY)
+    return URL(request.application or 'dds','default','view',vars=dict( docid = docid ),scheme='https', host=server,hmac_key=URL_KEY)
     
 def get_context(doc,campaign,rc):
     url_type = { 'Body Only': None , 'Attachment' : None , 'Cloudfiles Temp URL': 'temp_url', 'DDS Server URL': 'dds_url'}[campaign.service_type]
