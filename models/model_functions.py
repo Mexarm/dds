@@ -444,7 +444,7 @@ def daemon_reclaim_attach_storage(): # looks in the attach_temp dir to reclaim s
         c=get_campaign_by_uuid(c_uuid)
         rmtree=True
         if c:
-            if c.status in ['queuing','live','scheduled']:
+            if c.status in ['live','scheduled']:
                 reclaim_attach_storage_campaign(c_uuid)
                 rmtree=False
         if rmtree: shutil.rmtree(path.join(attach_temp,c_uuid))
@@ -454,7 +454,7 @@ def reclaim_attach_storage_campaign(c_uuid):
     attach_temp = path.join(request.folder , 'attach_temp')
     c_folder = path.join(attach_temp,c_uuid)
     c=get_campaign_by_uuid(c_uuid)
-    if c.status == 'in approval': return #dont reclaim storage in approval
+    if c.status in ['in approval', 'queueing']: return #dont reclaim storage in approval
     queued = DOC_LOCAL_STATE_OK[4]
     for f in [entry for entry in listdir(c_folder) if path.isfile(path.join(c_folder,entry))]:
         row = db((db.doc.campaign == c.id) & (db.doc.object_name == f) & (db.doc.status == queued )).select(limitby=(0,1)).first()
