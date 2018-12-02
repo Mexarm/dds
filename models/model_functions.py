@@ -915,8 +915,8 @@ def send_doc_wrapper(doc_id,**send_vars):
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.rcode,doc.campaign)
     update_doc = True
-    if 'update_doc' in kwargs:
-        update_doc = kwargs['update_doc']
+    if 'update_doc' in send_vars:
+        update_doc = send_vars['update_doc']
     send_args = (doc,campaign,rc)
     return process_mg_response(mg_send_message(get_send_doc_args(send_args,sd_kwargs)),doc_id,update_doc=update_doc)
 
