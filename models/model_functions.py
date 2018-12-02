@@ -860,7 +860,7 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
             doc = get_doc(d.id)
             campaign = get_campaign(doc.campaign)
             rc = get_rcode(doc.rcode,doc.campaign)
-            q.put((doc,id,get_send_doc_args((doc,campaign,rc))))
+            q.put((d.id,get_send_doc_args((doc,campaign,rc))))
         else:
             if min_datetime:
                 if min_datetime > mg_acceptance_time:
