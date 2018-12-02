@@ -918,7 +918,7 @@ def send_doc_wrapper(doc_id,**send_vars):
     if 'update_doc' in send_vars:
         update_doc = send_vars['update_doc']
     send_args = (doc,campaign,rc)
-    return process_mg_response(mg_send_message((doc_id,get_send_doc_args(send_args,sd_kwargs))),update_doc=update_doc)
+    return process_mg_response(mg_send_message((doc_id,get_send_doc_args(send_args,sd_kwargs)))[1],doc_id,update_doc=update_doc)
 
 def process_mg_response(res,doc_id,update_doc=True):
     #    Mailgun returns standard HTTP response codes.
