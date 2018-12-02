@@ -1012,11 +1012,13 @@ def get_send_doc_args(params,to=None,is_sample=False,ignore_delivery_time=False,
             files,
             data)
 
-def mg_send_message(domain, **kwargs):
+def mg_send_message(send_args):
+    domain, files, data = send_args
     return requests.post(
         "https://api.mailgun.net/v3/{}/messages".format(domain),
         auth=("api", myconf.get('mailgun.api_key')),
-        **kwargs)
+        files=files,
+        data=data)
 
 def get_rcode(rcode_id,campaign_id):
     return db((db.retrieve_code.id == rcode_id) & (db.retrieve_code.campaign == campaign_id)).select(limitby=(0,1),
