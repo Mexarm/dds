@@ -857,7 +857,10 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
     for d in docs:
         mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else campaign.mg_acceptance_time
         if mg_acceptance_time <= datetime.datetime.now():
-            q.put(d.id)
+            doc = get_doc(d.id)
+            campaign = get_campaign(doc.campaign)
+            rc = get_rcode(doc.rcode,doc.campaign)
+            q.put((doc,campaign,rc))
         else:
             if min_datetime:
                 if min_datetime > mg_acceptance_time:
@@ -974,12 +977,10 @@ def get_context_fields(context, parent='', prekey = '.', postkey = ''):
             result.append(parent + pre + k +postkey)
     return result
 
-def send_doc(doc_id,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
+def send_doc(params,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
     from re import sub
-    doc = get_doc(doc_id)
-    campaign = get_campaign(doc.campaign)
-    rc = get_rcode(doc.rcode,doc.campaign)
+    doc,campaign,rc = params
     files=[]
     if campaign.logo:
         logofile = path.join(abspath(request.folder),'logos',campaign.logo)
