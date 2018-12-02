@@ -836,7 +836,13 @@ def domain_is_active(domain):
         raise Exception('cannot verify if domain: {} is active'.format(d))
     return dict_getv(r.json(),'domain.state') == 'active'
 
-def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
+def send_doc_set(campaign_id,oseq_beg,oseq_end):
+    import MTRequests
+    from Queue import Queue
+#    import requests
+
+    q = Queue()
+
     campaign = get_campaign(campaign_id)
     if not domain_is_active(campaign.mg_domain):
         raise Exception('{} domain is disabled'.format(campaign.mg_domain))
@@ -851,14 +857,17 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end): #called by a task
     for d in docs:
         mg_acceptance_time = compute_acceptance_time(d.deliverytime) if d.deliverytime else campaign.mg_acceptance_time
         if mg_acceptance_time <= datetime.datetime.now():
-            send_doc_wrapper(d.id)
-            sended+=1
+            q.put(d.id)
         else:
             if min_datetime:
                 if min_datetime > mg_acceptance_time:
                     min_datetime = mg_acceptance_time
             else:
                 min_datetime = mg_acceptance_time
+    myworkers = MTRequests.MTRequests(q, send_doc_wrapper,num_workers=100)
+    out = myworkers.run()
+    for item in list(out.queue):
+        if not item.error: sended +=1 
     t2= time.time()
     r = dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1,processed=sended)
     if min_datetime:
