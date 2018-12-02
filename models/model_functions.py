@@ -860,14 +860,14 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
             doc = get_doc(d.id)
             campaign = get_campaign(doc.campaign)
             rc = get_rcode(doc.rcode,doc.campaign)
-            q.put((doc,campaign,rc))
+            q.put(get_send_doc_args(doc,campaign,rc))
         else:
             if min_datetime:
                 if min_datetime > mg_acceptance_time:
                     min_datetime = mg_acceptance_time
             else:
                 min_datetime = mg_acceptance_time
-    myworkers = MTRequests.MTRequests(q, send_doc,num_workers=100)
+    myworkers = MTRequests.MTRequests(q, mg_send_message, num_workers=100)
     out = myworkers.run()
     for item in list(out.queue):
         if not item.error:
@@ -977,7 +977,7 @@ def get_context_fields(context, parent='', prekey = '.', postkey = ''):
             result.append(parent + pre + k +postkey)
     return result
 
-def send_doc(params,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
+def get_send_doc_args(params,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
     import ntpath
     from re import sub
     doc,campaign,rc = params
@@ -1008,14 +1008,14 @@ def send_doc(params,to=None,is_sample=False,ignore_delivery_time=False,test_mode
     if campaign.service_type == 'Attachment':
         for f in save_attachment(doc,campaign,rc):
             files.append(('attachment',(ntpath.basename(f),open(f,'rb').read())))
-    return mg_send_message(campaign.mg_domain,  myconf.get('mailgun.api_key'),
-            files=files,
-            data=data)
+    return (campaign.mg_domain,  
+            files,
+            data)
 
-def mg_send_message(domain,api_key,**kwargs):
+def mg_send_message(domain, **kwargs):
     return requests.post(
         "https://api.mailgun.net/v3/{}/messages".format(domain),
-        auth=("api", api_key),
+        auth=("api", myconf.get('mailgun.api_key')),
         **kwargs)
 
 def get_rcode(rcode_id,campaign_id):
