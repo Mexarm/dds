@@ -909,6 +909,18 @@ def save_image(campaign_logo):
     copyfileobj(stream_, open(fullname, 'wb'))
     return fullname
 
+def send_doc_wrapper(doc_id,send_vars):
+    sd_kwargs = { k : send_vars[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in send_vars}
+    doc_id = args[0]
+    doc = get_doc(doc_id)
+    campaign = get_campaign(doc.campaign)
+    rc = get_rcode(doc.rcode,doc.campaign)
+    update_doc = True
+    if 'update_doc' in kwargs:
+        update_doc = kwargs['update_doc']
+    send_args = (doc,campaign,rc)
+    return process_mg_response(mg_send_message(get_send_doc_args(send_args,sd_kwargs)),doc_id,update_doc=update_doc)
+
 def process_mg_response(res,doc_id,update_doc=True):
     #    Mailgun returns standard HTTP response codes.
     #Code	Description
