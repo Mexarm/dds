@@ -864,10 +864,12 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
                     min_datetime = mg_acceptance_time
             else:
                 min_datetime = mg_acceptance_time
-    myworkers = MTRequests.MTRequests(q, send_doc_wrapper,num_workers=100)
+    myworkers = MTRequests.MTRequests(q, send_doc,num_workers=100)
     out = myworkers.run()
     for item in list(out.queue):
-        if not item.error: sended +=1 
+        if not item.error:
+            send_doc_wrapper(item.output)
+            sended +=1 
     t2= time.time()
     r = dict(docs=len(docs),prepare_time= t1-t0,loop= t2-t1,processed=sended)
     if min_datetime:
