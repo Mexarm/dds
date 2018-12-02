@@ -860,7 +860,9 @@ def send_doc_set(campaign_id,oseq_beg,oseq_end):
             doc = get_doc(d.id)
             campaign = get_campaign(doc.campaign)
             rc = get_rcode(doc.rcode,doc.campaign)
-            q.put((d.id,get_send_doc_args((doc,campaign,rc))))
+            send_args = (doc,campaign,rc)
+            send_vars = { 'test_mode': campaign.test_mode}
+            q.put((d.id,get_send_doc_args(send_args,send_vars)))
         else:
             if min_datetime:
                 if min_datetime > mg_acceptance_time:
@@ -906,14 +908,6 @@ def save_image(campaign_logo):
     fullname = path.join(abspath(request.folder),'logos/',campaign_logo)
     copyfileobj(stream_, open(fullname, 'wb'))
     return fullname
-
-def send_doc_wrapper(*args,**kwargs):
-    sd_kwargs = { k : kwargs[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in kwargs}
-    doc_id = args[0]
-    update_doc = True
-    if 'update_doc' in kwargs:
-        update_doc = kwargs['update_doc']
-    return process_mg_response(send_doc(*args,**sd_kwargs),doc_id,update_doc=update_doc)
 
 def process_mg_response(res,doc_id,update_doc=True):
     #    Mailgun returns standard HTTP response codes.
@@ -977,10 +971,15 @@ def get_context_fields(context, parent='', prekey = '.', postkey = ''):
             result.append(parent + pre + k +postkey)
     return result
 
-def get_send_doc_args(params,to=None,is_sample=False,ignore_delivery_time=False,test_mode=False):
+def get_send_doc_args(send_args,send_vars):
     import ntpath
     from re import sub
-    doc,campaign,rc = params
+    doc,campaign,rc = send_args
+    #to=None,is_sample=False,ignore_delivery_time=False,test_mode=False
+    to = send_vars['to'] if 'to' in send_vars else None
+    is_sample = send_vars['is_sample'] if 'is_sample' in send_vars else False
+    ignore_delivery_time = send_vars['ignore_delivery_time'] if 'ignore_delivery_time' in send_vars else False
+    test_mode = send_vars['test_mode'] if 'test_mode' in send_vars else False
     files=[]
     if campaign.logo:
         logofile = path.join(abspath(request.folder),'logos',campaign.logo)
