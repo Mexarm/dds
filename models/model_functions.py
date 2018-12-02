@@ -911,7 +911,6 @@ def save_image(campaign_logo):
 
 def send_doc_wrapper(doc_id,**send_vars):
     sd_kwargs = { k : send_vars[k] for k in ['to','is_sample','ignore_delivery_time','testmode'] if k in send_vars}
-    doc_id = args[0]
     doc = get_doc(doc_id)
     campaign = get_campaign(doc.campaign)
     rc = get_rcode(doc.rcode,doc.campaign)
