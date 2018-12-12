@@ -119,7 +119,7 @@ def mysql_add_index(table, column):
                 "ALTER TABLE {table} ADD INDEX `{idx_name}` (`{column}`);".format(**params))
 
 db.define_table('campaign',
-                Field('uuid', 'string',default=default=lambda:str(uuid.uuid4()), label='Campaign UUID', writable=False, readable=False),
+                Field('uuid', 'string',default=lambda:str(uuid.uuid4()), label='Campaign UUID', writable=False, readable=False),
                 Field('mg_domain','string',label = 'Mailgun Domain'),
                 Field('campaign_name','string',notnull=True,label=T('Campaign Name'),
                      requires=[IS_NOT_EMPTY(),IS_NOT_IN_DB(db, 'campaign.campaign_name')]),
@@ -255,7 +255,7 @@ db.define_table('event_data',
 db.define_table('mg_event',
             Field('campaign','reference campaign',notnull=True),
             Field('doc','reference doc',notnull=True),
-            Field('event_id','string',default=default=lambda:str(uuid.uuid4()),length=UUID_LENGTH,unique=True,notnull=True),
+            Field('event_id','string',default=lambda:str(uuid.uuid4()),length=UUID_LENGTH,unique=True,notnull=True),
             Field('is_webhook','boolean',default = False,readable=False),
             Field('webhook_token','string',readable=False),
             Field('event_timestamp_dt','datetime',notnull=True), # UTC time
