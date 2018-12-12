@@ -50,7 +50,7 @@ def launch_campaign(campaign_id):
     if campaign.mg_acceptance_time > datetime.datetime.now():
         raise ValueError("can not launch campaign before {}".format(c.mg_acceptance_time)) # only execute this on or after campaign.mg_acceptance_time
     max = db.doc.osequence.max()
-    e = campaign.total_campaign_recipients or db(db.doc.campaign == campaign_id).select(max).first()[max]
+    e = db(db.doc.campaign == campaign_id).select(max).first()[max] or campaign.total_campaign_recipients 
     tasks=[]
     for r in get_ranges(1,e,i):
         send_task = scheduler.queue_task(send_doc_set,
